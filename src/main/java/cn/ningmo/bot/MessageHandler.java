@@ -54,15 +54,16 @@ public class MessageHandler {
         String userId = CommonUtils.safeGetString(message, "user_id");
         String rawMessage = message.optString("raw_message", "");
         
-        // 首先处理命令，不检查群是否启用AI
+        // 检查群是否启用AI，如果未启用且不是管理员，直接返回
+        boolean isAdmin = isGroupAdmin(userId, groupId);
+        if (!dataManager.isGroupAIEnabled(groupId) && !isAdmin) {
+            return; // 群未启用，且不是管理员，无视所有消息
+        }
+        
+        // 处理命令
         if (rawMessage.startsWith("/")) {
             handleGroupCommand(groupId, userId, rawMessage);
             return;
-        }
-        
-        // 检查群是否启用AI
-        if (!dataManager.isGroupAIEnabled(groupId)) {
-            return;  // 如果AI未启用，直接返回，不处理后续消息
         }
         
         // 处理@机器人消息
