@@ -133,4 +133,11 @@ public class CommonUtils {
         
         return defaultValue;
     }
+
+    /**
+     * 检查字符串是否为空
+     */
+    public static boolean isEmpty(String str) {
+        return str == null || str.trim().isEmpty();
+    }
 } 

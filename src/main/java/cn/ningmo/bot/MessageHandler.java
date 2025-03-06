@@ -14,6 +14,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import cn.ningmo.utils.CommonUtils;
 
@@ -54,6 +56,9 @@ public class MessageHandler {
         String userId = CommonUtils.safeGetString(message, "user_id");
         String rawMessage = message.optString("raw_message", "");
         
+        // 添加日志，帮助调试消息格式
+        logger.debug("收到群消息: groupId={}, userId={}, rawMessage={}", groupId, userId, rawMessage);
+        
         // 检查群是否启用AI，如果未启用且不是管理员，直接返回
         boolean isAdmin = isGroupAdmin(userId, groupId);
         if (!dataManager.isGroupAIEnabled(groupId) && !isAdmin) {
@@ -66,16 +71,65 @@ public class MessageHandler {
             return;
         }
         
-        // 处理@机器人消息
+        // 群已启用AI功能，处理对话触发条件
         String selfId = configLoader.getConfigString("bot.self_id");
-        if (rawMessage.contains("@" + selfId) || rawMessage.contains("[CQ:at,qq=" + selfId + "]")) {
-            String cleanedContent = rawMessage.replaceAll("@" + selfId, "").replaceAll("\\[CQ:at,qq=" + selfId + "\\]", "").trim();
+        String botName = configLoader.getConfigString("bot.name", "柠檬");
+        
+        // 更强大的@检测：检查消息中所有的CQ:at代码
+        boolean isAtBot = false;
+        
+        // 方法1：使用正则表达式检查所有@标记
+        if (rawMessage.contains("[CQ:at")) {
+            Pattern pattern = Pattern.compile("\\[CQ:at,qq=(\\d+)\\]");
+            Matcher matcher = pattern.matcher(rawMessage);
+            while (matcher.find()) {
+                String atQQ = matcher.group(1);
+                if (selfId.equals(atQQ)) {
+                    isAtBot = true;
+                    break;
+                }
+            }
+        }
+        
+        // 方法2：备用检测，防止格式差异
+        if (!isAtBot) {
+            isAtBot = rawMessage.contains("@" + selfId) || 
+                      rawMessage.contains("[CQ:at,qq=" + selfId + "]") ||
+                      rawMessage.contains("@" + botName);
+        }
+        
+        // 触发条件2：消息包含机器人名字
+        boolean containsBotName = !CommonUtils.isEmpty(botName) && rawMessage.contains(botName);
+        
+        // 记录触发状态
+        logger.debug("消息触发检测: isAtBot={}, containsBotName={}, isEnabled={}", 
+                    isAtBot, containsBotName, dataManager.isGroupAIEnabled(groupId));
+        
+        // 如果触发了任一条件，则进行回复
+        if (dataManager.isGroupAIEnabled(groupId) && (isAtBot || containsBotName)) {
+            // 清理消息内容，去掉@标记
+            String cleanedContent = rawMessage
+                .replaceAll("@" + selfId, "")
+                .replaceAll("\\[CQ:at,qq=" + selfId + "\\]", "")
+                .trim();
+            
+            logger.debug("处理AI回复: userId={}, cleanedContent={}", userId, cleanedContent);
             
             // 异步处理AI回复
             CompletableFuture.runAsync(() -> {
                 try {
                     String reply = aiService.chat(userId, cleanedContent);
-                    botClient.sendGroupMessage(groupId, reply);
+                    
+                    // 检查是否需要@发送者
+                    boolean alwaysAtSender = configLoader.getConfigBoolean("bot.always_at_sender");
+                    String replyMessage = reply;
+                    
+                    if (alwaysAtSender) {
+                        String atSender = "[CQ:at,qq=" + userId + "] ";
+                        replyMessage = atSender + reply;
+                    }
+                    
+                    botClient.sendGroupMessage(groupId, replyMessage);
                 } catch (Exception e) {
                     logger.error("AI处理消息出错", e);
                     botClient.sendGroupMessage(groupId, "AI处理消息时出错，请稍后再试。");

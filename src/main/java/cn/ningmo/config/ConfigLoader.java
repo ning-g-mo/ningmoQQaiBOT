@@ -90,8 +90,19 @@ public class ConfigLoader {
         }
     }
     
+    /**
+     * 获取配置中的字符串值，如果不存在则返回空字符串
+     */
     public String getConfigString(String key) {
-        return getConfig(key, "");
+        return getConfigString(key, "");
+    }
+    
+    /**
+     * 获取配置中的字符串值，如果不存在则返回默认值
+     */
+    public String getConfigString(String key, String defaultValue) {
+        Object value = getConfig(key, null);
+        return value != null ? value.toString() : defaultValue;
     }
     
     public boolean getConfigBoolean(String key) {
@@ -107,7 +118,7 @@ public class ConfigLoader {
      * 初始化日志级别
      */
     private void initLogging() {
-        String configLogLevel = getConfigString("logging.level");
+        String configLogLevel = getConfigString("logging.level", "");
         if (!configLogLevel.isEmpty()) {
             // 将配置中的日志级别设置为系统属性，供logback.xml使用
             System.setProperty("log.level", configLogLevel.toUpperCase());
