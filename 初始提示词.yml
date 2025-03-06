@@ -1,0 +1,35 @@
+## 提示词
+一个基于onebot协议的QQ ai聊天机器人
+使用JAVA语言，使用JAVA21构建
+包名cn.ningmo
+基础功能：
+- 分群开关（默认开启分群模式，这个模式下需要指定群主人发送开启ai对话的指令）
+- 人设系统（可设置默认人设，通过查看人设命令查看人设，默认所有人有权限切换人设）
+- 模型系统 （可设置多个模型，通过查看模型命令查看已设置模型，默认所有人有权限切换模型，因为每个人对话是独立的）
+配置文件系统：
+- config.yml（保存机器人链接地址，机器人配置等，消息也可以在这设置）
+- data.yml（保存分群数据，用户数据）
+模型接入可自定义，默认接入格式为openai
+
+## 目录结构
+src/main/java/cn/ningmo/
+├── NingmoAIBot.java          // 主应用类
+├── config/                   // 配置相关
+│   ├── ConfigLoader.java
+│   └── DataManager.java
+├── bot/                      // 机器人核心
+│   ├── OneBotClient.java
+│   └── MessageHandler.java
+├── ai/                       // AI相关
+│   ├── AIService.java
+│   ├── model/
+│   │   ├── ModelManager.java
+│   │   └── OpenAIModel.java
+│   └── persona/
+│       └── PersonaManager.java
+└── utils/                    // 工具类
+    └── CommonUtils.java
+
+src/main/resources/
+├── config.yml                // 默认配置文件
+└── data.yml                  // 默认数据文件

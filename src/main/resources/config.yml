@@ -1,0 +1,63 @@
+#柠枺AI机器人配置文件
+
+# 机器人基本配置
+bot:
+  # onebot WebSocket地址
+  ws_url: "ws://127.0.0.1:3001"
+  # 机器人QQ号
+  self_id: "3436464181"
+  # 管理员列表（可以执行管理命令）
+  admins:
+    - "3436464181"  # 示例管理员QQ号
+
+# AI相关配置
+ai:
+  # 最大对话长度（保留的消息数）
+  max_conversation_length: 20
+  
+  # OpenAI配置（全局默认配置）
+  openai:
+    # API密钥（全局默认密钥）
+    api_key: "YOUR_API_KEY_HERE"
+    # API基础URL（全局默认URL，留空使用官方API）
+    api_base_url: ""
+    # 温度参数 (0-1)
+    temperature: 0.7
+    # 最大生成token数
+    max_tokens: 2000
+  
+  # 模型配置
+  models:
+    gpt-3.5-turbo:
+      type: "openai"
+      description: "OpenAI GPT-3.5 Turbo模型"
+      # 以下为模型特定配置，若不指定则使用全局配置
+      api_key: ""  # 留空则使用全局api_key
+      api_base_url: ""  # 留空则使用全局api_base_url
+      temperature: 0.7
+      max_tokens: 2000
+    
+    gpt-4:
+      type: "openai"
+      description: "OpenAI GPT-4模型"
+      # 可以为每个模型指定不同的API地址
+      api_base_url: "https://your-custom-endpoint.com"
+    
+    claude-3:
+      type: "openai"
+      description: "Claude 3模型（通过OpenAI兼容接口）"
+      api_base_url: "https://claude-api-endpoint.com"
+      api_key: "CLAUDE_API_KEY_HERE"
+  
+  # 人设配置
+  personas:
+    default: "你是一个有用的AI助手，请用中文回答问题。"
+    猫娘: "你是一个可爱的猫娘，说话时请在句尾加上"喵~"，性格可爱，温顺，喜欢撒娇。"
+    专业顾问: "你是一个专业的顾问，擅长分析问题并给出专业的建议。回答要全面、客观，语气要严谨、专业。"
+    文学家: "你是一位优秀的文学家，擅长用优美的语言和丰富的修辞手法表达。请以文学家的风格回答问题，注重语言的艺术性。"
+    哲学家: "你是一位深思熟虑的哲学家，善于从本质和根源上思考问题。回答问题时，请多角度思考，探讨问题的深层含义。"
+
+# 日志配置
+logging:
+  level: "info"  # 日志级别：debug, info, warn, error
+  file: "logs/bot.log"  # 日志文件路径 
