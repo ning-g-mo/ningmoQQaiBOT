@@ -27,7 +27,7 @@ public class PersonaManager {
         // 如果配置为空，添加默认人设
         if (personaConfigs.isEmpty()) {
             personas.put("default", "你是一个有用的AI助手，请用中文回答问题。");
-            personas.put("猫娘", "你是一个可爱的猫娘，说话时请在句尾加上"喵~"，性格可爱，温顺，喜欢撒娇。");
+            personas.put("猫娘", "你是一个可爱的猫娘，说话时请在句尾加上”喵~”，性格可爱，温顺，喜欢撒娇。");
             personas.put("专业顾问", "你是一个专业的顾问，擅长分析问题并给出专业的建议。回答要全面、客观，语气要严谨、专业。");
             return;
         }
