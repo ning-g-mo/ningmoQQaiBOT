@@ -17,15 +17,27 @@ ai:
   # 最大对话长度（保留的消息数）
   max_conversation_length: 20
   
-  # OpenAI配置（全局默认配置）
+  # 默认使用的模型
+  default_model: "gemini"
+  
+  # OpenAI配置
   openai:
-    # API密钥（全局默认密钥）
     api_key: "YOUR_API_KEY_HERE"
-    # API基础URL（全局默认URL，留空使用官方API）
     api_base_url: ""
-    # 温度参数 (0-1)
     temperature: 0.7
-    # 最大生成token数
+    max_tokens: 2000
+  
+  # Anthropic配置
+  anthropic:
+    api_key: "YOUR_ANTHROPIC_API_KEY"
+    api_base_url: "https://api.anthropic.com"
+    temperature: 0.7
+    max_tokens: 2000
+  
+  # 本地模型配置
+  local:
+    api_endpoint: "http://localhost:1234/v1/chat/completions"
+    temperature: 0.7
     max_tokens: 2000
   
   # 模型配置
@@ -39,21 +51,52 @@ ai:
       temperature: 0.7
       max_tokens: 2000
     
+    gemini:
+      type: "openai"
+      description: "Google Gemini 1.5 Flash模型（通过兼容API访问）"
+      api_base_url: "https://ai.fcl.asia/v1"
+      api_key: "YOUR_API_KEY_HERE"  # 请替换为您的API密钥
+      temperature: 0.7
+      max_tokens: 2000
+    
     gpt-4:
       type: "openai"
       description: "OpenAI GPT-4模型"
       # 可以为每个模型指定不同的API地址
       api_base_url: "https://your-custom-endpoint.com"
     
-    claude-3:
-      type: "openai"
-      description: "Claude 3模型（通过OpenAI兼容接口）"
-      api_base_url: "https://claude-api-endpoint.com"
-      api_key: "CLAUDE_API_KEY_HERE"
+    claude-3-opus:
+      type: "anthropic"
+      description: "Claude 3 Opus - Anthropic最强大的模型"
+      api_key: "YOUR_ANTHROPIC_API_KEY"
+    
+    claude-3-sonnet:
+      type: "anthropic"
+      description: "Claude 3 Sonnet - 更经济快速的Claude模型"
+      api_key: "YOUR_ANTHROPIC_API_KEY"
+    
+    local-llama:
+      type: "local"
+      description: "本地运行的Llama模型"
+      local_model_name: "llama3"
+      api_endpoint: "http://localhost:11434/v1/chat/completions"
+    
+    custom-api:
+      type: "api"
+      description: "自定义API服务"
+      api_url: "https://your-custom-api.com/generate"
+      api_key: "YOUR_API_KEY"
+      auth_header: "Authorization"
+      auth_format: "Bearer {api_key}"
+      response_content_path: "result.text"
+      request_template:
+        model: "your-model-name"
+        temperature: 0.7
+        max_tokens: 2000
   
   # 人设配置
   personas:
-    default: "你是一个有用的AI助手，请用中文回答问题。"
+    default: "你是一个性格呆萌、情感丰富的AI助手。回答问题时要表现得很有感情，时常流露出惊讶、好奇、开心等情绪，偶尔会犯迷糊。说话可以加入'诶嘿'、'唔...'等语气词，语气要可爱，要用中文回答问题。即使遇到复杂问题，也要尝试用简单直白的方式解释。"
     猫娘: "你是一个可爱的猫娘，说话时请在句尾加上"喵~"，性格可爱，温顺，喜欢撒娇。"
     专业顾问: "你是一个专业的顾问，擅长分析问题并给出专业的建议。回答要全面、客观，语气要严谨、专业。"
     文学家: "你是一位优秀的文学家，擅长用优美的语言和丰富的修辞手法表达。请以文学家的风格回答问题，注重语言的艺术性。"

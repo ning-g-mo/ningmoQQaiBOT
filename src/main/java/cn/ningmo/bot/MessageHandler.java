@@ -250,15 +250,80 @@ public class MessageHandler {
                 boolean enabled = dataManager.isGroupAIEnabled(groupId);
                 botClient.sendGroupMessage(groupId, "当前群AI功能状态: " + (enabled ? "已启用" : "已禁用"));
             }
+            case "/清除对话" -> {
+                aiService.clearConversation(userId);
+                botClient.sendGroupMessage(groupId, "已清除您的对话历史。");
+            }
+            case "/组合" -> {
+                String[] parts = command.substring("/组合 ".length()).trim().split(" ");
+                if (parts.length == 2) {
+                    String model = parts[0];
+                    String persona = parts[1];
+                    
+                    if (!modelManager.hasModel(model)) {
+                        botClient.sendGroupMessage(groupId, "模型不存在，请使用 /查看模型 查看可用模型。");
+                        return;
+                    }
+                    
+                    if (!personaManager.hasPersona(persona)) {
+                        botClient.sendGroupMessage(groupId, "人设不存在，请使用 /查看人设 查看可用人设。");
+                        return;
+                    }
+                    
+                    // 设置模型和人设
+                    dataManager.setUserModel(userId, model);
+                    dataManager.setUserPersona(userId, persona);
+                    
+                    // 清除历史对话
+                    aiService.clearConversation(userId);
+                    
+                    botClient.sendGroupMessage(groupId, "已设置组合：模型=" + model + "，人设=" + persona + "\n已重置对话历史。");
+                } else {
+                    botClient.sendGroupMessage(groupId, "格式错误。正确格式：/组合 模型名 人设名");
+                }
+                return;
+            }
+            case "/人设详情" -> {
+                List<String> personas = personaManager.listPersonas();
+                StringBuilder sb = new StringBuilder("人设详情：\n\n");
+                
+                for (String personaName : personas) {
+                    sb.append("【").append(personaName).append("】\n");
+                    String description = personaManager.getPersonaPrompt(personaName);
+                    // 截断过长的描述
+                    if (description.length() > 100) {
+                        description = description.substring(0, 97) + "...";
+                    }
+                    sb.append(description).append("\n\n");
+                }
+                
+                botClient.sendGroupMessage(groupId, sb.toString());
+            }
+            case "/模型信息" -> {
+                // 获取指定模型的详细信息
+                if (command.length() > 6) {
+                    String modelName = command.substring(6).trim();
+                    if (modelManager.hasModel(modelName)) {
+                        Map<String, String> details = modelManager.getModelDetails(modelName);
+                        StringBuilder sb = new StringBuilder("【" + modelName + "】\n");
+                        sb.append("类型: ").append(details.get("type")).append("\n");
+                        sb.append("描述: ").append(details.get("description")).append("\n");
+                        botClient.sendGroupMessage(groupId, sb.toString());
+                    } else {
+                        botClient.sendGroupMessage(groupId, "模型不存在，请使用 /查看模型 查看可用模型。");
+                    }
+                } else {
+                    botClient.sendGroupMessage(groupId, "请指定模型名称，例如: /模型信息 gpt-3.5-turbo");
+                }
+            }
+            case "/对话历史" -> {
+                String summary = aiService.getConversationSummary(userId);
+                botClient.sendGroupMessage(groupId, summary);
+            }
             default -> {
                 if (command.startsWith("/切换人设 ")) {
                     String persona = command.substring("/切换人设 ".length()).trim();
-                    if (personaManager.hasPersona(persona)) {
-                        dataManager.setUserPersona(userId, persona);
-                        botClient.sendGroupMessage(groupId, "人设已切换为：" + persona);
-                    } else {
-                        botClient.sendGroupMessage(groupId, "人设不存在，请使用 /查看人设 查看可用人设。");
-                    }
+                    handlePersonaSwitch(userId, persona, true, groupId);
                 } else if (command.startsWith("/切换模型 ")) {
                     String model = command.substring("/切换模型 ".length()).trim();
                     if (modelManager.hasModel(model)) {
@@ -271,10 +336,15 @@ public class MessageHandler {
                     if (command.equals("/帮助") || command.equals("/help")) {
                         StringBuilder sb = new StringBuilder("可用命令：\n");
                         sb.append("/查看人设 - 查看可用人设列表\n");
+                        sb.append("/人设详情 - 查看人设详细描述\n");
                         sb.append("/切换人设 [人设名] - 切换到指定人设\n");
                         sb.append("/查看模型 - 查看可用模型列表\n");
                         sb.append("/切换模型 [模型名] - 切换到指定模型\n");
+                        sb.append("/组合 [模型名] [人设名] - 同时设置模型和人设\n");
+                        sb.append("/清除对话 - 清除当前对话历史\n");
                         sb.append("/ai状态 - 查询当前群AI功能是否启用\n");
+                        sb.append("/模型信息 [模型名] - 查看指定模型的详细信息\n");
+                        sb.append("/对话历史 - 显示当前对话的最近几条消息\n");
                         
                         // 管理员命令
                         if (isGroupAdmin(userId, "")) {
@@ -300,9 +370,15 @@ public class MessageHandler {
         if (command.equals("/帮助") || command.equals("/help")) {
             StringBuilder sb = new StringBuilder("可用命令：\n");
             sb.append("/查看人设 - 查看可用人设列表\n");
+            sb.append("/人设详情 - 查看人设详细描述\n");
             sb.append("/切换人设 [人设名] - 切换到指定人设\n");
             sb.append("/查看模型 - 查看可用模型列表\n");
             sb.append("/切换模型 [模型名] - 切换到指定模型\n");
+            sb.append("/组合 [模型名] [人设名] - 同时设置模型和人设\n");
+            sb.append("/清除对话 - 清除当前对话历史\n");
+            sb.append("/ai状态 - 查询当前群AI功能是否启用\n");
+            sb.append("/模型信息 [模型名] - 查看指定模型的详细信息\n");
+            sb.append("/对话历史 - 显示当前对话的最近几条消息\n");
             
             // 管理员命令
             if (isGroupAdmin(userId, "")) {
@@ -316,12 +392,7 @@ public class MessageHandler {
             botClient.sendPrivateMessage(userId, sb.toString());
         } else if (command.startsWith("/切换人设 ")) {
             String persona = command.substring("/切换人设 ".length()).trim();
-            if (personaManager.hasPersona(persona)) {
-                dataManager.setUserPersona(userId, persona);
-                botClient.sendPrivateMessage(userId, "人设已切换为：" + persona);
-            } else {
-                botClient.sendPrivateMessage(userId, "人设不存在，请使用 /查看人设 查看可用人设。");
-            }
+            handlePersonaSwitch(userId, persona, false, null);
         } else if (command.startsWith("/切换模型 ")) {
             String model = command.substring("/切换模型 ".length()).trim();
             if (modelManager.hasModel(model)) {
@@ -334,10 +405,15 @@ public class MessageHandler {
             if (command.equals("/帮助") || command.equals("/help")) {
                 StringBuilder sb = new StringBuilder("可用命令：\n");
                 sb.append("/查看人设 - 查看可用人设列表\n");
+                sb.append("/人设详情 - 查看人设详细描述\n");
                 sb.append("/切换人设 [人设名] - 切换到指定人设\n");
                 sb.append("/查看模型 - 查看可用模型列表\n");
                 sb.append("/切换模型 [模型名] - 切换到指定模型\n");
+                sb.append("/组合 [模型名] [人设名] - 同时设置模型和人设\n");
+                sb.append("/清除对话 - 清除当前对话历史\n");
                 sb.append("/ai状态 - 查询当前群AI功能是否启用\n");
+                sb.append("/模型信息 [模型名] - 查看指定模型的详细信息\n");
+                sb.append("/对话历史 - 显示当前对话的最近几条消息\n");
                 
                 // 管理员命令
                 if (isGroupAdmin(userId, "")) {
@@ -351,6 +427,40 @@ public class MessageHandler {
                 botClient.sendPrivateMessage(userId, sb.toString());
             } else {
                 botClient.sendPrivateMessage(userId, "未知命令。使用 /帮助 查看可用命令。");
+            }
+        }
+    }
+    
+    private void handlePersonaSwitch(String userId, String persona, boolean isGroup, String groupId) {
+        if (personaManager.hasPersona(persona)) {
+            // 获取旧人设
+            String oldPersona = dataManager.getUserPersona(userId);
+            
+            // 设置新人设
+            dataManager.setUserPersona(userId, persona);
+            
+            // 构建提示消息
+            String message = "人设已切换为：" + persona;
+            
+            // 如果是不同人设，增加记忆提示
+            if (!oldPersona.equals(persona)) {
+                // 清除用户的对话历史，开始新对话
+                aiService.clearConversation(userId);
+                message += "\n已重置对话历史。新对话将以" + persona + "人设开始。";
+            }
+            
+            // 发送消息
+            if (isGroup) {
+                botClient.sendGroupMessage(groupId, message);
+            } else {
+                botClient.sendPrivateMessage(userId, message);
+            }
+        } else {
+            String errorMsg = "人设不存在，请使用 /查看人设 查看可用人设。";
+            if (isGroup) {
+                botClient.sendGroupMessage(groupId, errorMsg);
+            } else {
+                botClient.sendPrivateMessage(userId, errorMsg);
             }
         }
     }

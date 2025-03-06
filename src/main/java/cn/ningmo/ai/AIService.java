@@ -4,6 +4,7 @@ import cn.ningmo.ai.model.ModelManager;
 import cn.ningmo.ai.persona.PersonaManager;
 import cn.ningmo.config.ConfigLoader;
 import cn.ningmo.config.DataManager;
+import cn.ningmo.utils.CommonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,6 +73,28 @@ public class AIService {
     }
     
     public void clearConversation(String userId) {
-        conversations.remove(userId);
+        conversations.computeIfPresent(userId, (id, conversation) -> {
+            conversation.clear();
+            return conversation;
+        });
+        logger.info("已清除用户 {} 的对话历史", userId);
+    }
+    
+    public String getConversationSummary(String userId) {
+        List<Map<String, String>> conversation = getOrCreateConversation(userId);
+        if (conversation.isEmpty()) {
+            return "无对话历史";
+        }
+        
+        StringBuilder sb = new StringBuilder("当前对话历史：\n");
+        int count = Math.min(conversation.size(), 3);  // 最多显示最近3条
+        for (int i = conversation.size() - count; i < conversation.size(); i++) {
+            Map<String, String> message = conversation.get(i);
+            sb.append(message.get("role")).append(": ")
+              .append(CommonUtils.truncateText(message.get("content"), 50))
+              .append("\n");
+        }
+        
+        return sb.toString();
     }
 } 

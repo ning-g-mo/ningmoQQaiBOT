@@ -16,7 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class OpenAIModel {
+public class OpenAIModel implements AIModel {
     private static final Logger logger = LoggerFactory.getLogger(OpenAIModel.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
     
@@ -34,6 +34,7 @@ public class OpenAIModel {
                 .build();
     }
     
+    @Override
     public String generateReply(String systemPrompt, List<Map<String, String>> conversation) {
         String apiKey = getModelConfigValue("api_key", configLoader.getConfigString("ai.openai.api_key"));
         String apiBaseUrl = getModelConfigValue("api_base_url", configLoader.getConfigString("ai.openai.api_base_url"));
@@ -125,6 +126,21 @@ public class OpenAIModel {
             logger.error("API调用过程中发生未预期异常，模型：{}", modelName, e);
             return "AI服务发生未知错误，请稍后再试。";
         }
+    }
+    
+    @Override
+    public String getName() {
+        return modelName;
+    }
+    
+    @Override
+    public String getDescription() {
+        return "OpenAI模型";
+    }
+    
+    @Override
+    public String getType() {
+        return "openai";
     }
     
     private String getModelConfigValue(String key, String defaultValue) {
