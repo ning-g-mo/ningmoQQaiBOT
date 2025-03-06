@@ -54,8 +54,9 @@ ai:
     gemini:
       type: "openai"
       description: "Google Gemini 1.5 Flash模型（通过兼容API访问）"
-      api_base_url: "https://ai.fcl.asia/v1"
-      api_key: "YOUR_API_KEY_HERE"  # 请替换为您的API密钥
+      api_base_url: "https://ai.fcl.asia"
+      api_key: "YOUR_API_KEY_HERE"
+      model_name: "gemini-1.5-pro"
       temperature: 0.7
       max_tokens: 2000
     

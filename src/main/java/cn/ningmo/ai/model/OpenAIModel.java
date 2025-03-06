@@ -59,7 +59,8 @@ public class OpenAIModel implements AIModel {
         
         try {
             Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("model", modelName);
+            String actualModelName = getModelConfigValue("model_name", modelName);
+            requestBody.put("model", actualModelName);
             
             List<Map<String, String>> messages = new ArrayList<>();
             
