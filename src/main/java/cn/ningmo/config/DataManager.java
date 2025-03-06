@@ -147,12 +147,29 @@ public class DataManager {
     
     // 群组相关方法
     public boolean isGroupAIEnabled(String groupId) {
-        return groupAIEnabled.getOrDefault(groupId, true);
+        Map<String, Object> group = getGroupData(groupId);
+        // 默认启用AI（可以根据需要修改为默认禁用）
+        return (boolean) group.getOrDefault("ai_enabled", true);
     }
     
     public void setGroupAIEnabled(String groupId, boolean enabled) {
-        groupAIEnabled.put(groupId, enabled);
+        logger.info("设置群 {} 的AI状态为: {}", groupId, enabled ? "启用" : "禁用");
+        Map<String, Object> group = getGroupData(groupId);
+        group.put("ai_enabled", enabled);
         saveData();
+    }
+    
+    /**
+     * 获取群组数据，如果不存在则创建默认数据
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getGroupData(String groupId) {
+        Map<String, Object> groups = getDataMap("groups");
+        return (Map<String, Object>) groups.computeIfAbsent(groupId, k -> {
+            Map<String, Object> defaultGroupData = new HashMap<>();
+            defaultGroupData.put("ai_enabled", false); // 默认禁用AI
+            return defaultGroupData;
+        });
     }
     
     // 用户相关方法
