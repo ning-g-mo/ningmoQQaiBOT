@@ -13,6 +13,8 @@ import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.json.JSONObject;
+
 public class CommonUtils {
     private static final Logger logger = LoggerFactory.getLogger(CommonUtils.class);
     private static final Random random = new Random();
@@ -82,5 +84,53 @@ public class CommonUtils {
      */
     public static boolean isNullOrEmpty(String str) {
         return str == null || str.trim().isEmpty();
+    }
+
+    /**
+     * 从JSONObject中安全获取字符串，适用于各种数据类型
+     */
+    public static String safeGetString(JSONObject json, String key) {
+        if (!json.has(key)) return "";
+        
+        Object obj = json.get(key);
+        return obj == null ? "" : String.valueOf(obj);
+    }
+
+    /**
+     * 从JSONObject中安全获取长整型
+     */
+    public static long safeGetLong(JSONObject json, String key, long defaultValue) {
+        if (!json.has(key)) return defaultValue;
+        
+        try {
+            Object obj = json.get(key);
+            if (obj instanceof Number) {
+                return ((Number) obj).longValue();
+            } else if (obj instanceof String) {
+                return Long.parseLong((String) obj);
+            }
+        } catch (Exception ignored) {
+        }
+        
+        return defaultValue;
+    }
+
+    /**
+     * 从JSONObject中安全获取整型
+     */
+    public static int safeGetInt(JSONObject json, String key, int defaultValue) {
+        if (!json.has(key)) return defaultValue;
+        
+        try {
+            Object obj = json.get(key);
+            if (obj instanceof Number) {
+                return ((Number) obj).intValue();
+            } else if (obj instanceof String) {
+                return Integer.parseInt((String) obj);
+            }
+        } catch (Exception ignored) {
+        }
+        
+        return defaultValue;
     }
 } 

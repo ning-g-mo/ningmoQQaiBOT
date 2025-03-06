@@ -86,7 +86,7 @@ public class OneBotClient extends WebSocketClient {
                     && jsonObject.has("data")) {
                 JSONObject data = jsonObject.getJSONObject("data");
                 if (data.has("user_id")) {
-                    String userId = data.getString("user_id");
+                    String userId = String.valueOf(data.get("user_id"));
                     String nickname = data.optString("nickname", "机器人");
                     logger.info("机器人登录信息: QQ={}, 昵称={}", userId, nickname);
                 }

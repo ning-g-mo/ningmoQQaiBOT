@@ -15,6 +15,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import cn.ningmo.utils.CommonUtils;
+
 public class MessageHandler {
     private static final Logger logger = LoggerFactory.getLogger(MessageHandler.class);
     
@@ -48,14 +50,14 @@ public class MessageHandler {
     }
     
     private void handleGroupMessage(JSONObject message) {
-        String groupId = message.getString("group_id");
-        String userId = message.getString("user_id");
-        String content = message.getString("message");
+        String groupId = CommonUtils.safeGetString(message, "group_id");
+        String userId = CommonUtils.safeGetString(message, "user_id");
+        String rawMessage = message.optString("raw_message", "");
         
         // 检查群是否启用AI
         if (!dataManager.isGroupAIEnabled(groupId)) {
             // 如果没有启用，检查是否是开启命令
-            if (content.equals("/启用ai") || content.equals("/开启ai")) {
+            if (rawMessage.equals("/启用ai") || rawMessage.equals("/开启ai")) {
                 // 检查是否是群主或管理员
                 if (isGroupAdmin(userId, groupId)) {
                     dataManager.setGroupAIEnabled(groupId, true);
@@ -68,15 +70,15 @@ public class MessageHandler {
         }
         
         // 处理命令
-        if (content.startsWith("/")) {
-            handleGroupCommand(groupId, userId, content);
+        if (rawMessage.startsWith("/")) {
+            handleGroupCommand(groupId, userId, rawMessage);
             return;
         }
         
         // 处理@机器人消息
         String selfId = configLoader.getConfigString("bot.self_id");
-        if (content.contains("@" + selfId) || content.contains("[CQ:at,qq=" + selfId + "]")) {
-            String cleanedContent = content.replaceAll("@" + selfId, "").replaceAll("\\[CQ:at,qq=" + selfId + "\\]", "").trim();
+        if (rawMessage.contains("@" + selfId) || rawMessage.contains("[CQ:at,qq=" + selfId + "]")) {
+            String cleanedContent = rawMessage.replaceAll("@" + selfId, "").replaceAll("\\[CQ:at,qq=" + selfId + "\\]", "").trim();
             
             // 异步处理AI回复
             CompletableFuture.runAsync(() -> {
@@ -92,19 +94,19 @@ public class MessageHandler {
     }
     
     private void handlePrivateMessage(JSONObject message) {
-        String userId = message.getString("user_id");
-        String content = message.getString("message");
+        String userId = String.valueOf(message.get("user_id"));
+        String rawMessage = message.getString("raw_message");
         
         // 处理命令
-        if (content.startsWith("/")) {
-            handlePrivateCommand(userId, content);
+        if (rawMessage.startsWith("/")) {
+            handlePrivateCommand(userId, rawMessage);
             return;
         }
         
         // 异步处理AI回复
         CompletableFuture.runAsync(() -> {
             try {
-                String reply = aiService.chat(userId, content);
+                String reply = aiService.chat(userId, rawMessage);
                 botClient.sendPrivateMessage(userId, reply);
             } catch (Exception e) {
                 logger.error("AI处理消息出错", e);
