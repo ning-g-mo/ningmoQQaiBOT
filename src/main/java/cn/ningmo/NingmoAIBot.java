@@ -3,6 +3,7 @@ package cn.ningmo;
 import cn.ningmo.bot.OneBotClient;
 import cn.ningmo.config.ConfigLoader;
 import cn.ningmo.config.DataManager;
+import cn.ningmo.utils.CommonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,12 +15,16 @@ public class NingmoAIBot {
     private OneBotClient botClient;
     
     public static void main(String[] args) {
+        // 确保日志目录存在
+        CommonUtils.ensureDirectoryExists("logs");
+        
         NingmoAIBot bot = new NingmoAIBot();
         bot.start();
     }
     
     public void start() {
         logger.info("宁默AI机器人启动中...");
+        logger.info("当前Java版本: {}", System.getProperty("java.version"));
         
         // 加载配置
         configLoader = new ConfigLoader();
@@ -31,6 +36,8 @@ public class NingmoAIBot {
         
         // 启动机器人
         String wsUrl = configLoader.getConfigString("bot.ws_url");
+        logger.info("正在连接OneBot服务器: {}", wsUrl);
+        
         botClient = new OneBotClient(wsUrl, configLoader, dataManager);
         botClient.connect();
         

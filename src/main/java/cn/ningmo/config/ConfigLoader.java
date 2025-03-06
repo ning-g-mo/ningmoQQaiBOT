@@ -38,6 +38,9 @@ public class ConfigLoader {
             logger.error("配置文件加载失败", e);
             System.exit(1);
         }
+        
+        // 初始化日志
+        initLogging();
     }
     
     private void createDefaultConfig() {
@@ -98,5 +101,18 @@ public class ConfigLoader {
     @SuppressWarnings("unchecked")
     public Map<String, Object> getConfigMap(String key) {
         return getConfig(key, new HashMap<>());
+    }
+    
+    /**
+     * 初始化日志级别
+     */
+    private void initLogging() {
+        String configLogLevel = getConfigString("logging.level");
+        if (!configLogLevel.isEmpty()) {
+            // 将配置中的日志级别设置为系统属性，供logback.xml使用
+            System.setProperty("log.level", configLogLevel.toUpperCase());
+            System.setProperty("log.project.level", configLogLevel.toUpperCase());
+            logger.info("已设置日志级别：{}", configLogLevel.toUpperCase());
+        }
     }
 } 

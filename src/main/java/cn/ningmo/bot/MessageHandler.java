@@ -316,9 +316,16 @@ public class MessageHandler {
     }
     
     private boolean isGroupAdmin(String userId, String groupId) {
-        // 这里应该调用onebot API获取群成员信息
-        // 简化版本，从配置文件获取管理员列表
+        // 首先检查全局管理员列表
         List<String> admins = configLoader.getConfig("bot.admins", List.of());
-        return admins.contains(userId);
+        if (admins.contains(userId)) {
+            return true;
+        }
+        
+        // 如果不是全局管理员且提供了群ID，则可以考虑通过API获取群角色
+        // 此处为简化处理，仅使用全局管理员列表
+        // 实际使用时可以通过OneBot API获取群成员信息判断角色
+        
+        return false;
     }
 } 

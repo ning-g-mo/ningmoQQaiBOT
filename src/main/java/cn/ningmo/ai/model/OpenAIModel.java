@@ -97,14 +97,33 @@ public class OpenAIModel {
                     Map<String, String> message = (Map<String, String>) choice.get("message");
                     return message.get("content");
                 }
+            } else if (response.statusCode() == 401) {
+                logger.error("API密钥无效或已过期，模型：{}", modelName);
+                return "AI服务认证失败，请联系管理员检查API密钥配置。";
+            } else if (response.statusCode() == 429) {
+                logger.error("API请求频率超限或余额不足，模型：{}", modelName);
+                return "AI服务暂时达到使用限制，请稍后再试。";
+            } else if (response.statusCode() >= 500) {
+                logger.error("API服务器错误，模型：{}, 状态码：{}", modelName, response.statusCode());
+                return "AI服务器暂时出现故障，请稍后再试。";
+            } else {
+                logger.error("API调用失败，模型：{}，状态码：{}，响应：{}", 
+                        modelName, response.statusCode(), response.body());
+                return "AI服务暂时出现故障，请稍后再试。";
             }
             
-            logger.error("API调用失败，模型：{}，状态码：{}，响应：{}", modelName, response.statusCode(), response.body());
             return "AI服务暂时出现故障，请稍后再试。";
             
-        } catch (IOException | InterruptedException e) {
-            logger.error("API调用异常，模型：{}", modelName, e);
-            return "AI服务暂时不可用，请稍后再试。";
+        } catch (IOException e) {
+            logger.error("API网络请求异常，模型：{}", modelName, e);
+            return "AI服务网络连接异常，请稍后再试。";
+        } catch (InterruptedException e) {
+            logger.error("API请求被中断，模型：{}", modelName, e);
+            Thread.currentThread().interrupt();
+            return "AI请求被中断，请稍后再试。";
+        } catch (Exception e) {
+            logger.error("API调用过程中发生未预期异常，模型：{}", modelName, e);
+            return "AI服务发生未知错误，请稍后再试。";
         }
     }
     
