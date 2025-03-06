@@ -25,7 +25,10 @@ public class DataManager {
     // 用户数据: userId -> 用户信息
     private Map<String, Map<String, Object>> userData;
     
-    public DataManager() {
+    private final ConfigLoader configLoader;
+    
+    public DataManager(ConfigLoader configLoader) {
+        this.configLoader = configLoader;
         this.data = new ConcurrentHashMap<>();
         this.groupAIEnabled = new ConcurrentHashMap<>();
         this.userData = new ConcurrentHashMap<>();
@@ -196,7 +199,9 @@ public class DataManager {
     public Map<String, Object> getUserData(String userId) {
         return userData.computeIfAbsent(userId, k -> {
             Map<String, Object> defaultUserData = new HashMap<>();
-            defaultUserData.put("model", "gpt-3.5-turbo");
+            // 从配置文件获取默认模型，而不是硬编码
+            String defaultModel = configLoader.getConfigString("ai.default_model", "gpt-3.5-turbo");
+            defaultUserData.put("model", defaultModel);
             defaultUserData.put("persona", "default");
             defaultUserData.put("conversation", new HashMap<>());
             return defaultUserData;

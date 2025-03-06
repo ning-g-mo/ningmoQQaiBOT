@@ -23,7 +23,7 @@ public class NingmoAIBot {
     }
     
     public void start() {
-        logger.info("宁默AI机器人启动中...");
+        logger.info("柠枺AI机器人启动中...");
         logger.info("当前Java版本: {}", System.getProperty("java.version"));
         
         // 加载配置
@@ -31,7 +31,7 @@ public class NingmoAIBot {
         configLoader.loadConfig();
         
         // 加载数据
-        dataManager = new DataManager();
+        dataManager = new DataManager(configLoader);
         dataManager.loadData();
         
         // 启动机器人
@@ -41,14 +41,14 @@ public class NingmoAIBot {
         botClient = new OneBotClient(wsUrl, configLoader, dataManager);
         botClient.connect();
         
-        logger.info("宁默AI机器人启动完成！");
+        logger.info("柠枺AI机器人启动完成！");
         
         // 添加关闭钩子
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            logger.info("正在关闭宁默AI机器人...");
+            logger.info("正在关闭柠枺AI机器人...");
             botClient.close();
             dataManager.saveData();
-            logger.info("宁默AI机器人已关闭");
+            logger.info("柠枺AI机器人已关闭");
         }));
     }
 } 

@@ -35,6 +35,14 @@ public class AIService {
     public String chat(String userId, String message) {
         // 获取用户当前的模型
         String modelName = dataManager.getUserModel(userId);
+        // 如果用户模型是默认的gpt-3.5-turbo，检查配置文件中的默认设置
+        if (modelName.equals("gpt-3.5-turbo")) {
+            String configDefault = configLoader.getConfigString("ai.default_model", "");
+            if (!configDefault.isEmpty() && modelManager.hasModel(configDefault)) {
+                modelName = configDefault;
+            }
+        }
+        
         // 获取用户当前的人设
         String personaName = dataManager.getUserPersona(userId);
         
