@@ -31,11 +31,12 @@ public class DataManager {
         this.userData = new ConcurrentHashMap<>();
     }
     
+    @SuppressWarnings("unchecked")
     public void loadData() {
-        Path dataPath = Paths.get(DATA_FILE);
+        File dataFile = new File(DATA_FILE);
         
         // 如果数据文件不存在，创建默认数据文件
-        if (!Files.exists(dataPath)) {
+        if (!dataFile.exists()) {
             createDefaultData();
         }
         
@@ -43,9 +44,23 @@ public class DataManager {
         try (InputStream input = new FileInputStream(DATA_FILE)) {
             Yaml yaml = new Yaml();
             data = yaml.load(input);
+            
             if (data == null) {
+                logger.warn("数据文件为空，使用空数据");
                 data = new HashMap<>();
             }
+            
+            // 确保基本数据结构存在
+            if (!data.containsKey("groups")) {
+                data.put("groups", new HashMap<>());
+            }
+            
+            if (!data.containsKey("users")) {
+                data.put("users", new HashMap<>());
+            }
+            
+            // 加载用户数据
+            userData = (Map<String, Map<String, Object>>) data.getOrDefault("users", new HashMap<>());
             
             // 加载群组数据
             Map<String, Object> groups = getDataMap("groups");
@@ -57,36 +72,33 @@ public class DataManager {
                 }
             }
             
-            // 加载用户数据
-            Map<String, Object> users = getDataMap("users");
-            for (Map.Entry<String, Object> entry : users.entrySet()) {
-                if (entry.getValue() instanceof Map) {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> userInfo = (Map<String, Object>) entry.getValue();
-                    userData.put(entry.getKey(), userInfo);
-                }
-            }
-            
             logger.info("数据文件加载成功");
         } catch (IOException e) {
             logger.error("数据文件加载失败", e);
+            // 初始化空数据
             data = new HashMap<>();
-            groupAIEnabled = new ConcurrentHashMap<>();
-            userData = new ConcurrentHashMap<>();
+            data.put("groups", new HashMap<>());
+            data.put("users", new HashMap<>());
+            userData = new HashMap<>();
         }
     }
     
     public void saveData() {
-        // 更新数据到主数据结构
+        Map<String, Object> data = new HashMap<>();
+        
+        // 保存群组数据
         Map<String, Object> groups = new HashMap<>();
-        for (Map.Entry<String, Boolean> entry : groupAIEnabled.entrySet()) {
-            Map<String, Object> groupData = new HashMap<>();
-            groupData.put("ai_enabled", entry.getValue());
-            groups.put(entry.getKey(), groupData);
+        for (Map.Entry<String, Object> entry : getDataMap("groups").entrySet()) {
+            groups.put(entry.getKey(), entry.getValue());
         }
         data.put("groups", groups);
         
-        data.put("users", userData);
+        // 保存用户数据
+        Map<String, Object> users = new HashMap<>();
+        for (Map.Entry<String, Map<String, Object>> entry : userData.entrySet()) {
+            users.put(entry.getKey(), entry.getValue());
+        }
+        data.put("users", users);
         
         // 保存数据
         try {
@@ -148,8 +160,15 @@ public class DataManager {
     // 群组相关方法
     public boolean isGroupAIEnabled(String groupId) {
         Map<String, Object> group = getGroupData(groupId);
-        // 默认启用AI（可以根据需要修改为默认禁用）
-        return (boolean) group.getOrDefault("ai_enabled", true);
+        Object value = group.get("ai_enabled");
+        
+        // 明确处理可能的类型问题
+        if (value instanceof Boolean) {
+            return (Boolean) value;
+        }
+        
+        // 默认禁用AI
+        return false;
     }
     
     public void setGroupAIEnabled(String groupId, boolean enabled) {

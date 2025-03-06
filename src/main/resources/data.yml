@@ -1,14 +1,15 @@
-# 宁默AI机器人数据文件
+# AI机器人数据文件
+# 存储群组设置和用户偏好
 
-# 群组数据
+# 群组配置
 groups:
   # 示例格式
-  # 123456789:  # 群号
-  #   ai_enabled: true  # 是否启用AI（默认为true）
+  # 123456789:
+  #   ai_enabled: true
 
-# 用户数据
+# 用户配置
 users:
   # 示例格式
-  # 987654321:  # 用户QQ号
-  #   model: "gpt-3.5-turbo"  # 用户使用的模型
-  #   persona: "default"  # 用户使用的人设
+  # 123456789:
+  #   model: gpt-3.5-turbo
+  #   persona: default
