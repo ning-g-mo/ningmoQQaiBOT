@@ -11,6 +11,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      security-events: write
     env:
       PREVIEW_SUFFIX: preview-${{ github.sha }}  # 提交SHA作为预览后缀
 
