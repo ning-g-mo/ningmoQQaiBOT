@@ -32,7 +32,7 @@ jobs:
         else
           VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)-${{ env.PREVIEW_SUFFIX }}
         fi
-        echo "version=$VERSION" > $GITHUB_OUTPUT
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Build with version
       run: |
