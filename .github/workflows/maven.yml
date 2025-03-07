@@ -42,12 +42,17 @@ jobs:
         mvn -B versions:set -DnewVersion=${{ steps.set-version.outputs.version }}
         mvn -B package --file pom.xml
 
+    - name: Submit dependency graph
+      uses: advanced-security/maven-dependency-tree-action@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Upload Artifact
       if: ${{ !contains(github.ref, 'refs/tags/') }}
       uses: actions/upload-artifact@v4
       with:
         name: preview-build
-        path: target/*.jar
+        path: target/*-jar-with-dependencies.jar
 
     - name: Update dependency graph
       uses: advanced-security/maven-dependency-submission-action@571e99aab1055c2e71a1e2309b9691de18d6b7d6
