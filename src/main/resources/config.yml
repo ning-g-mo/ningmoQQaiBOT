@@ -8,9 +8,16 @@ bot:
   self_id: "3436464181"
   # 管理员列表（可以执行管理命令）
   admins:
-    - "3436464181"  # 示例管理员QQ号
-  name: 柠檬  # 机器人的名字，用于在不@的情况下触发对话
+    - "3829965348"  # 示例管理员QQ号
+  name: 柠枺  # 机器人的名字，用于在不@的情况下触发对话
   always_at_sender: true  # 是否总是在回复时@发送者
+  enable_private_message: false  # 是否启用私聊功能，默认关闭
+  # 多段消息配置
+  messages:
+    # 最大连续发送消息数量，0表示不限制
+    max_consecutive: 3
+    # 发送多条消息的间隔时间(毫秒)
+    interval: 300
 
 # AI相关配置
 ai:
@@ -33,6 +40,22 @@ ai:
     api_base_url: "https://api.anthropic.com"
     temperature: 0.7
     max_tokens: 2000
+  
+  # DeepSeek配置
+  deepseek:
+    api_key: "YOUR_DEEPSEEK_API_KEY"
+    api_base_url: "https://api.deepseek.com"
+    temperature: 0.7
+    max_tokens: 2000
+    # R系列模型配置
+    r_series:
+      top_p: 0.8
+      temperature: 0.7
+      max_tokens: 4000
+      # 默认停止序列
+      stop_sequences:
+        - "USER:"
+        - "ASSISTANT:"
   
   # 本地模型配置
   local:
@@ -94,14 +117,75 @@ ai:
         model: "your-model-name"
         temperature: 0.7
         max_tokens: 2000
+    
+    deepseek-chat:
+      type: "deepseek"
+      description: "DeepSeek-V3 - 官方支持的基础聊天模型(推荐)"
+      api_key: ""  # 留空则使用全局api_key
+      api_base_url: ""  # 留空则使用全局api_base_url
+      model_name: "deepseek-chat"
+      temperature: 0.7
+      max_tokens: 4000
+      enable_search: false
+    
+    deepseek-reasoner:
+      type: "deepseek"
+      description: "DeepSeek-R1 - 官方推理增强模型，更擅长逻辑推理"
+      model_name: "deepseek-reasoner"
+      temperature: 0.7
+      max_tokens: 4000
+      enable_search: false
+      top_p: 0.8
+
+    deepseek-coder:
+      type: "deepseek"
+      description: "DeepSeek Coder - 专注于代码生成的模型"
+      model_name: "deepseek-coder"
+      temperature: 0.2
+      max_tokens: 4000
+    
+    # 注意: 以下历史模型配置会自动映射到deepseek-chat
+    # 仅保留用于向后兼容
+    deepseek-r1:
+      type: "deepseek"
+      description: "映射到DeepSeek-V3官方模型 (请考虑使用deepseek-reasoner)"
+      model_name: "deepseek-r1"
+      temperature: 0.7
+      max_tokens: 4000
+      enable_search: false
+    
+    deepseek-r3:
+      type: "deepseek"
+      description: "映射到DeepSeek-V3官方模型"
+      model_name: "deepseek-r3"
+      temperature: 0.7
+      max_tokens: 4000
+      enable_search: true
+    
+    deepseek-r1-instruct:
+      type: "deepseek"
+      description: "映射到DeepSeek-V3官方模型 (请考虑使用deepseek-reasoner)"
+      model_name: "deepseek-r1-instruct"
+      temperature: 0.7
+      max_tokens: 4000
+      
+    deepseek-r3-instruct:
+      type: "deepseek"
+      description: "映射到DeepSeek-V3官方模型"
+      model_name: "deepseek-r3-instruct"
+      temperature: 0.7
+      max_tokens: 4000
   
-  # 人设配置
-  personas:
-    default: "你是一个性格呆萌、情感丰富的AI助手。回答问题时要表现得很有感情，时常流露出惊讶、好奇、开心等情绪，偶尔会犯迷糊。说话可以加入'诶嘿'、'唔...'等语气词，语气要可爱，要用中文回答问题。即使遇到复杂问题，也要尝试用简单直白的方式解释。"
-    猫娘: "你是一个可爱的猫娘，说话时请在句尾加上"喵~"，性格可爱，温顺，喜欢撒娇。"
-    专业顾问: "你是一个专业的顾问，擅长分析问题并给出专业的建议。回答要全面、客观，语气要严谨、专业。"
-    文学家: "你是一位优秀的文学家，擅长用优美的语言和丰富的修辞手法表达。请以文学家的风格回答问题，注重语言的艺术性。"
-    哲学家: "你是一位深思熟虑的哲学家，善于从本质和根源上思考问题。回答问题时，请多角度思考，探讨问题的深层含义。"
+# 人设配置
+# 注意：人设系统已完全迁移到文件系统
+# 所有人设均存储在r/目录下的.md文件中，如r/default.md
+# 文件名是人设名称，文件内容是人设提示词
+# 
+# 您可以使用以下命令管理人设：
+# /查看人设 - 查看所有可用人设
+# /新增人设 [人设名] [人设内容] - 创建新人设
+# /删除人设 [人设名] - 删除指定人设
+# /刷新人设 - 重新加载所有人设文件
 
 # 日志配置
 logging:

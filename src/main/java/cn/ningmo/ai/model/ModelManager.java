@@ -49,6 +49,7 @@ public class ModelManager {
                 case "anthropic" -> new AnthropicModel(configLoader, modelName, modelConfig);
                 case "local" -> new LocalLLMModel(configLoader, modelName, modelConfig);
                 case "api" -> new GenericAPIModel(configLoader, modelName, modelConfig);
+                case "deepseek" -> new DeepSeekModel(configLoader, modelName, modelConfig);
                 default -> {
                     logger.warn("不支持的模型类型: {}", type);
                     yield null;

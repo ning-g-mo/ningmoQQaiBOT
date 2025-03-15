@@ -2,7 +2,7 @@
 <configuration>
     <!-- 控制台日志输出 -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
+        <encoder charset="UTF-8">
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
             <charset>UTF-8</charset>
         </encoder>
@@ -11,29 +11,28 @@
     <!-- 文件日志输出 -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/bot.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <!-- 每天创建一个日志文件，或者当文件大小超过10MB时创建新文件 -->
-            <fileNamePattern>logs/bot-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-            <maxFileSize>10MB</maxFileSize>
-            <!-- 保留30天的日志 -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/bot-%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>30</maxHistory>
-            <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>
-        <encoder>
+        <encoder charset="UTF-8">
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
             <charset>UTF-8</charset>
         </encoder>
     </appender>
 
-    <!-- 动态支持config.yml中的日志配置 -->
-    <root level="${log.level:-INFO}">
-        <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="FILE"/>
+    <!-- 从系统属性或默认值获取日志级别 -->
+    <property name="log.level" value="${log.level:-INFO}" />
+
+    <!-- 项目日志级别 -->
+    <logger name="cn.ningmo" level="${log.project.level:-INFO}" />
+
+    <!-- 根日志级别 -->
+    <root level="${log.level}">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
     </root>
 
-    <!-- 项目代码的日志级别 -->
-    <logger name="cn.ningmo" level="${log.project.level:-DEBUG}"/>
-    
     <!-- 第三方库的日志级别 -->
     <logger name="org.java_websocket" level="INFO"/>
 </configuration> 

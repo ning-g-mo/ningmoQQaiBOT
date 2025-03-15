@@ -15,6 +15,8 @@ import java.net.URISyntaxException;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.List;
+import java.util.ArrayList;
 
 public class OneBotClient extends WebSocketClient {
     private static final Logger logger = LoggerFactory.getLogger(OneBotClient.class);
@@ -32,6 +34,8 @@ public class OneBotClient extends WebSocketClient {
     private final AtomicInteger messageIdCounter = new AtomicInteger(0);
     // 连接状态
     private boolean isReconnecting = false;
+    // 最大单条消息长度
+    private static final int MAX_MESSAGE_LENGTH = 3000;
     
     public OneBotClient(String serverUri, ConfigLoader configLoader, DataManager dataManager) {
         super(createURI(serverUri));
@@ -216,9 +220,47 @@ public class OneBotClient extends WebSocketClient {
     }
     
     /**
-     * 发送群消息
+     * 检查私聊功能是否启用
+     */
+    public boolean isPrivateMessageEnabled() {
+        return configLoader.getConfigBoolean("bot.enable_private_message");
+    }
+    
+    /**
+     * 发送群消息（支持自动分段）
+     * 如果消息过长，会自动分成多段发送
      */
     public void sendGroupMessage(String groupId, String message) {
+        if (message == null || message.trim().isEmpty()) {
+            logger.warn("尝试发送空消息到群: {}", groupId);
+            return;
+        }
+        
+        // 如果消息长度小于最大长度，直接发送
+        if (message.length() <= MAX_MESSAGE_LENGTH) {
+            sendSingleGroupMessage(groupId, message);
+            return;
+        }
+        
+        // 消息过长，需要分段发送
+        List<String> segments = splitMessage(message);
+        for (String segment : segments) {
+            sendSingleGroupMessage(groupId, segment);
+            
+            // 添加短暂延迟，避免频繁发送导致的风控
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                logger.warn("发送消息线程被中断");
+            }
+        }
+    }
+    
+    /**
+     * 发送单条群消息
+     */
+    private void sendSingleGroupMessage(String groupId, String message) {
         JSONObject jsonObject = new JSONObject();
         jsonObject.put("action", "send_group_msg");
         
@@ -234,9 +276,45 @@ public class OneBotClient extends WebSocketClient {
     }
     
     /**
-     * 发送私聊消息
+     * 发送私聊消息（如果启用）
      */
     public void sendPrivateMessage(String userId, String message) {
+        // 检查私聊功能是否启用
+        if (!isPrivateMessageEnabled()) {
+            logger.info("私聊功能已关闭，不发送消息给用户: {}", userId);
+            return;
+        }
+        
+        if (message == null || message.trim().isEmpty()) {
+            logger.warn("尝试发送空消息到用户: {}", userId);
+            return;
+        }
+        
+        // 如果消息长度小于最大长度，直接发送
+        if (message.length() <= MAX_MESSAGE_LENGTH) {
+            sendSinglePrivateMessage(userId, message);
+            return;
+        }
+        
+        // 消息过长，需要分段发送
+        List<String> segments = splitMessage(message);
+        for (String segment : segments) {
+            sendSinglePrivateMessage(userId, segment);
+            
+            // 添加短暂延迟，避免频繁发送导致的风控
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                logger.warn("发送消息线程被中断");
+            }
+        }
+    }
+    
+    /**
+     * 发送单条私聊消息
+     */
+    private void sendSinglePrivateMessage(String userId, String message) {
         JSONObject jsonObject = new JSONObject();
         jsonObject.put("action", "send_private_msg");
         
@@ -249,6 +327,57 @@ public class OneBotClient extends WebSocketClient {
         
         send(jsonObject.toString());
         logger.debug("发送私聊消息: userId={}, message={}", userId, CommonUtils.truncateText(message, 100));
+    }
+    
+    /**
+     * 将长消息分割成多段
+     */
+    private List<String> splitMessage(String message) {
+        List<String> segments = new ArrayList<>();
+        
+        // 尝试在段落或句子处分割消息
+        int startIndex = 0;
+        while (startIndex < message.length()) {
+            int endIndex = Math.min(startIndex + MAX_MESSAGE_LENGTH, message.length());
+            
+            // 如果没有到达消息末尾，尝试在适当位置分割
+            if (endIndex < message.length()) {
+                // 尝试在段落处分割
+                int paragraphBreak = message.lastIndexOf("\n\n", endIndex);
+                if (paragraphBreak > startIndex && paragraphBreak > endIndex - 500) {
+                    endIndex = paragraphBreak;
+                } else {
+                    // 尝试在句子处分割
+                    int sentenceBreak = findLastSentenceBreak(message, startIndex, endIndex);
+                    if (sentenceBreak > startIndex) {
+                        endIndex = sentenceBreak;
+                    }
+                }
+            }
+            
+            segments.add(message.substring(startIndex, endIndex).trim());
+            startIndex = endIndex;
+        }
+        
+        return segments;
+    }
+    
+    /**
+     * 查找最后一个句子分隔符的位置
+     */
+    private int findLastSentenceBreak(String message, int startIndex, int endIndex) {
+        // 常见的句子分隔符
+        String[] separators = {"。", "！", "？", "…", ".", "!", "?"};
+        
+        int lastBreak = startIndex;
+        for (String separator : separators) {
+            int pos = message.lastIndexOf(separator, endIndex);
+            if (pos > lastBreak && pos > startIndex) {
+                lastBreak = pos + separator.length();
+            }
+        }
+        
+        return lastBreak > startIndex ? lastBreak : -1;
     }
     
     /**

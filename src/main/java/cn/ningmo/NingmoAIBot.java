@@ -15,6 +15,9 @@ public class NingmoAIBot {
     private OneBotClient botClient;
     
     public static void main(String[] args) {
+        // 设置默认编码为UTF-8，解决乱码问题
+        System.setProperty("file.encoding", "UTF-8");
+        
         // 确保日志目录存在
         CommonUtils.ensureDirectoryExists("logs");
         
