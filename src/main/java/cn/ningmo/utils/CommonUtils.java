@@ -54,11 +54,27 @@ public class CommonUtils {
      * 从CQ码中提取@的用户ID
      */
     public static String extractAtUserIdFromCQCode(String message) {
-        Pattern pattern = Pattern.compile("\\[CQ:at,qq=(\\d+)\\]");
-        Matcher matcher = pattern.matcher(message);
-        if (matcher.find()) {
-            return matcher.group(1);
+        // 首先使用正则表达式匹配标准格式 [CQ:at,qq=数字]
+        Pattern standardPattern = Pattern.compile("\\[CQ:at,qq=(\\d+)\\]");
+        Matcher standardMatcher = standardPattern.matcher(message);
+        if (standardMatcher.find()) {
+            return standardMatcher.group(1);
         }
+        
+        // 尝试匹配更宽松的格式 (如果CQ码可能有其他参数)
+        Pattern loosePattern = Pattern.compile("CQ:at,qq=(\\d+)");
+        Matcher looseMatcher = loosePattern.matcher(message);
+        if (looseMatcher.find()) {
+            return looseMatcher.group(1);
+        }
+        
+        // 尝试在消息中直接查找纯数字 (作为最后的备选方案)
+        Pattern numberPattern = Pattern.compile("^\\s*(\\d{5,})\\s*$");
+        Matcher numberMatcher = numberPattern.matcher(message);
+        if (numberMatcher.find()) {
+            return numberMatcher.group(1);
+        }
+        
         return null;
     }
     

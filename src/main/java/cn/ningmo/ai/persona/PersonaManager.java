@@ -212,13 +212,16 @@ public class PersonaManager {
             basePrompt = personas.get(personaName);
         }
         
-        // 添加关于多段消息的附加说明
-        String multipartInstructions = 
+        // 添加关于多段消息和艾特群友的附加说明
+        String specialInstructions = 
             "\n\n特殊指令说明：\n" +
             "1. 如果你想发送多条消息，请在消息之间使用 \\n---\\n 作为分隔符。系统会将你的回复拆分成多条单独发送。\n" +
-            "2. 如果你认为某个问题不需要回复，可以回复 [NO_RESPONSE] 表示不发送任何消息。";
+            "2. 如果你认为某个问题不需要回复，可以回复 [NO_RESPONSE] 表示不发送任何消息。\n" +
+            "3. 如果你想艾特(提及)群里的某个成员，可以使用 [CQ:at,qq=成员QQ号] 格式。例如：[CQ:at,qq=123456789] 你好！\n" +
+            "4. 当前对话的群成员列表可能会在系统指令的末尾提供，你可以从中选择需要艾特的成员。\n" +
+            "5. 重要：请不要艾特机器人自己，这可能导致消息循环和系统问题。";
         
-        return basePrompt + multipartInstructions;
+        return basePrompt + specialInstructions;
     }
     
     /**

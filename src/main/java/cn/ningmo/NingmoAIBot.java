@@ -1,8 +1,10 @@
 package cn.ningmo;
 
 import cn.ningmo.bot.OneBotClient;
+import cn.ningmo.config.BlacklistManager;
 import cn.ningmo.config.ConfigLoader;
 import cn.ningmo.config.DataManager;
+import cn.ningmo.config.FilterWordManager;
 import cn.ningmo.utils.CommonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +14,8 @@ public class NingmoAIBot {
     
     private ConfigLoader configLoader;
     private DataManager dataManager;
+    private BlacklistManager blacklistManager;
+    private FilterWordManager filterWordManager;
     private OneBotClient botClient;
     
     public static void main(String[] args) {
@@ -37,11 +41,17 @@ public class NingmoAIBot {
         dataManager = new DataManager(configLoader);
         dataManager.loadData();
         
+        // 初始化黑名单管理器
+        blacklistManager = new BlacklistManager(configLoader);
+        
+        // 初始化屏蔽词管理器
+        filterWordManager = new FilterWordManager(configLoader);
+        
         // 启动机器人
         String wsUrl = configLoader.getConfigString("bot.ws_url");
         logger.info("正在连接OneBot服务器: {}", wsUrl);
         
-        botClient = new OneBotClient(wsUrl, configLoader, dataManager);
+        botClient = new OneBotClient(wsUrl, configLoader, dataManager, blacklistManager, filterWordManager);
         botClient.connect();
         
         logger.info("柠枺AI机器人启动完成！");
@@ -51,6 +61,8 @@ public class NingmoAIBot {
             logger.info("正在关闭柠枺AI机器人...");
             botClient.close();
             dataManager.saveData();
+            blacklistManager.saveBlacklist();
+            filterWordManager.saveFilterWords();
             logger.info("柠枺AI机器人已关闭");
         }));
     }

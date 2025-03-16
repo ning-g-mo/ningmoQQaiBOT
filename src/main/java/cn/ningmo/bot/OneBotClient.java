@@ -1,12 +1,15 @@
 package cn.ningmo.bot;
 
 import cn.ningmo.ai.AIService;
+import cn.ningmo.config.BlacklistManager;
 import cn.ningmo.config.ConfigLoader;
 import cn.ningmo.config.DataManager;
+import cn.ningmo.config.FilterWordManager;
 import cn.ningmo.utils.CommonUtils;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.json.JSONObject;
+import org.json.JSONArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,12 +20,17 @@ import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
 
 public class OneBotClient extends WebSocketClient {
     private static final Logger logger = LoggerFactory.getLogger(OneBotClient.class);
     
     private final ConfigLoader configLoader;
     private final DataManager dataManager;
+    private final BlacklistManager blacklistManager;
+    private final FilterWordManager filterWordManager;
     private final MessageHandler messageHandler;
     private final AIService aiService;
     
@@ -37,12 +45,17 @@ public class OneBotClient extends WebSocketClient {
     // 最大单条消息长度
     private static final int MAX_MESSAGE_LENGTH = 3000;
     
-    public OneBotClient(String serverUri, ConfigLoader configLoader, DataManager dataManager) {
+    // 群成员信息缓存
+    private final Map<String, List<Map<String, String>>> groupMembersCache = new ConcurrentHashMap<>();
+    
+    public OneBotClient(String serverUri, ConfigLoader configLoader, DataManager dataManager, BlacklistManager blacklistManager, FilterWordManager filterWordManager) {
         super(createURI(serverUri));
         this.configLoader = configLoader;
         this.dataManager = dataManager;
+        this.blacklistManager = blacklistManager;
+        this.filterWordManager = filterWordManager;
         this.aiService = new AIService(configLoader, dataManager);
-        this.messageHandler = new MessageHandler(this, configLoader, dataManager, aiService);
+        this.messageHandler = new MessageHandler(this, configLoader, dataManager, aiService, blacklistManager, filterWordManager);
         
         // 设置连接超时
         this.setConnectionLostTimeout(60); // 60秒
@@ -74,41 +87,59 @@ public class OneBotClient extends WebSocketClient {
     @Override
     public void onMessage(String message) {
         try {
-            JSONObject jsonObject = new JSONObject(message);
+            // 记录收到的消息原始内容（仅在debug级别）
+            if (logger.isDebugEnabled()) {
+                logger.debug("收到WebSocket消息: {}", message);
+            }
             
-            // 只处理消息事件
-            if (jsonObject.has("post_type") && "message".equals(jsonObject.getString("post_type"))) {
-                logger.debug("收到消息事件: {}", CommonUtils.truncateText(message, 200));
-                messageHandler.handleMessage(jsonObject);
+            JSONObject json = new JSONObject(message);
+            
+            // 处理群成员列表响应
+            if (json.has("post_type") && "message_sent".equals(json.getString("post_type")) && 
+                json.has("echo") && json.getString("echo").startsWith("get_group_member_list:")) {
+                
+                if (json.has("data") && json.get("data") instanceof JSONArray) {
+                    String groupId = json.getString("echo").substring("get_group_member_list:".length());
+                    JSONArray members = json.getJSONArray("data");
+                    parseAndCacheGroupMembers(groupId, members);
+                }
+                return;
             }
+            
             // 处理心跳响应
-            else if (jsonObject.has("echo") && jsonObject.getString("echo").startsWith("heartbeat")) {
-                logger.trace("收到心跳响应");
+            if (json.has("echo") && "heartbeat".equals(json.optString("echo"))) {
+                logger.debug("收到心跳响应");
+                return;
             }
-            // 处理登录信息响应
-            else if (jsonObject.has("echo") && "get_login_info".equals(jsonObject.getString("echo"))
-                    && jsonObject.has("data")) {
-                JSONObject data = jsonObject.getJSONObject("data");
-                if (data.has("user_id")) {
-                    String userId = String.valueOf(data.get("user_id"));
-                    String nickname = data.optString("nickname", "机器人");
-                    logger.info("机器人登录信息: QQ={}, 昵称={}", userId, nickname);
-                }
+            
+            // 如果是元事件，不做处理
+            if (json.has("post_type") && "meta_event".equals(json.getString("post_type"))) {
+                return;
             }
-            // 其他事件
-            else if (jsonObject.has("post_type")) {
-                logger.debug("收到其他事件: {}", jsonObject.getString("post_type"));
+            
+            // 如果消息类型有问题，增加日志记录
+            if (!json.has("post_type") || !json.has("message_type")) {
+                logger.warn("收到格式异常的消息: {}", message);
+                return;
             }
-            // API响应
-            else if (jsonObject.has("status") && jsonObject.has("retcode")) {
-                int retcode = jsonObject.getInt("retcode");
-                if (retcode != 0) {
-                    logger.warn("API调用返回错误: code={}, status={}",
-                            retcode, jsonObject.getString("status"));
-                }
+            
+            // 消息处理
+            if (json.has("post_type") && "message".equals(json.getString("post_type"))) {
+                messageHandler.handleMessage(json);
             }
+            
+            // 处理群成员列表响应
+            if (json.has("data") && json.has("echo") && json.getString("echo").startsWith("get_group_member_list")) {
+                String groupId = json.getString("echo").substring("get_group_member_list:".length());
+                JSONArray members = json.getJSONArray("data");
+                parseAndCacheGroupMembers(groupId, members);
+                return;
+            }
+            
+            // 其他响应
+            logger.debug("收到其他事件: {}", message);
         } catch (Exception e) {
-            logger.error("处理消息时出错: {}", message, e);
+            logger.error("处理WebSocket消息时出错", e);
         }
     }
     
@@ -402,17 +433,46 @@ public class OneBotClient extends WebSocketClient {
      * 获取群成员列表
      */
     public void getGroupMemberList(String groupId) {
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("action", "get_group_member_list");
-        
-        JSONObject params = new JSONObject();
-        params.put("group_id", groupId);
-        
-        jsonObject.put("params", params);
-        jsonObject.put("echo", "get_group_member_list_" + messageIdCounter.incrementAndGet());
-        
-        send(jsonObject.toString());
-        logger.debug("获取群成员列表: groupId={}", groupId);
+        try {
+            JSONObject request = new JSONObject();
+            request.put("action", "get_group_member_list");
+            request.put("params", new JSONObject().put("group_id", Long.parseLong(groupId)));
+            request.put("echo", "get_group_member_list:" + groupId);
+            
+            send(request.toString());
+            logger.debug("已发送获取群 {} 成员列表请求", groupId);
+        } catch (Exception e) {
+            logger.error("发送获取群成员列表请求失败", e);
+        }
+    }
+    
+    // 解析并缓存群成员信息
+    private void parseAndCacheGroupMembers(String groupId, JSONArray members) {
+        try {
+            List<Map<String, String>> memberList = new ArrayList<>();
+            
+            for (int i = 0; i < members.length(); i++) {
+                JSONObject member = members.getJSONObject(i);
+                Map<String, String> memberInfo = new HashMap<>();
+                
+                memberInfo.put("user_id", CommonUtils.safeGetString(member, "user_id"));
+                memberInfo.put("nickname", CommonUtils.safeGetString(member, "nickname"));
+                memberInfo.put("card", CommonUtils.safeGetString(member, "card"));  // 群名片
+                memberInfo.put("role", CommonUtils.safeGetString(member, "role"));  // 角色: owner, admin, member
+                
+                memberList.add(memberInfo);
+            }
+            
+            groupMembersCache.put(groupId, memberList);
+            logger.debug("已缓存群 {} 的成员列表，共 {} 人", groupId, memberList.size());
+        } catch (Exception e) {
+            logger.error("解析群成员信息失败", e);
+        }
+    }
+    
+    // 添加获取群成员列表的方法
+    public List<Map<String, String>> getGroupMembers(String groupId) {
+        return groupMembersCache.getOrDefault(groupId, new ArrayList<>());
     }
     
     @Override
