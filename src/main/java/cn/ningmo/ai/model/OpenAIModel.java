@@ -2,6 +2,8 @@ package cn.ningmo.ai.model;
 
 import cn.ningmo.config.ConfigLoader;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,8 +13,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,107 +25,254 @@ public class OpenAIModel implements AIModel {
     private final Map<String, Object> modelConfig;
     private final HttpClient httpClient;
     
+    // 默认超时设置
+    private static final int DEFAULT_CONNECT_TIMEOUT_SECONDS = 30;
+    private static final int DEFAULT_REQUEST_TIMEOUT_SECONDS = 60;
+    
     public OpenAIModel(String modelName, ConfigLoader configLoader, Map<String, Object> modelConfig) {
         this.modelName = modelName;
         this.configLoader = configLoader;
         this.modelConfig = modelConfig;
+        
+        // 从配置中获取超时设置
+        int connectTimeout = getModelConfigValue("connect_timeout_seconds", DEFAULT_CONNECT_TIMEOUT_SECONDS);
+        int requestTimeout = getModelConfigValue("request_timeout_seconds", DEFAULT_REQUEST_TIMEOUT_SECONDS);
+        
+        // 创建HttpClient，设置超时
         this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(30))
+                .connectTimeout(Duration.ofSeconds(connectTimeout))
                 .build();
+        
+        logger.info("初始化OpenAI模型: {}, 连接超时: {}秒, 请求超时: {}秒", 
+                    modelName, connectTimeout, requestTimeout);
     }
     
     @Override
     public String generateReply(String systemPrompt, List<Map<String, String>> conversation) {
-        String apiKey = getModelConfigValue("api_key", configLoader.getConfigString("ai.openai.api_key"));
-        String apiBaseUrl = getModelConfigValue("api_base_url", configLoader.getConfigString("ai.openai.api_base_url"));
-        
-        if (apiKey.isEmpty()) {
-            logger.error("模型{}的API密钥未配置", modelName);
-            return "AI服务暂时不可用，请联系管理员配置API密钥。";
-        }
-        
-        if (apiBaseUrl.isEmpty()) {
-            apiBaseUrl = "https://api.openai.com/v1/chat/completions";
-        } else {
-            if (!apiBaseUrl.endsWith("/")) {
-                apiBaseUrl += "/";
-            }
-            if (!apiBaseUrl.endsWith("v1/chat/completions")) {
-                apiBaseUrl += "v1/chat/completions";
-            }
-        }
-        
-        logger.debug("使用模型{}，API地址：{}", modelName, apiBaseUrl);
+        // 记录开始处理请求的时间
+        long startTime = System.currentTimeMillis();
+        logger.info("开始生成AI回复，使用模型: {}, 对话长度: {}", modelName, conversation.size());
         
         try {
-            Map<String, Object> requestBody = new HashMap<>();
-            String actualModelName = getModelConfigValue("model_name", modelName);
-            requestBody.put("model", actualModelName);
+            // 构建请求体
+            JSONObject requestBody = new JSONObject();
             
-            List<Map<String, String>> messages = new ArrayList<>();
+            // 添加模型名称
+            requestBody.put("model", mapToApiModelName());
             
-            // 添加系统提示
-            Map<String, String> systemMessage = new HashMap<>();
+            // 构建消息数组
+            JSONArray messages = new JSONArray();
+            
+            // 添加系统消息
+            JSONObject systemMessage = new JSONObject();
             systemMessage.put("role", "system");
             systemMessage.put("content", systemPrompt);
-            messages.add(systemMessage);
+            messages.put(systemMessage);
             
             // 添加对话历史
-            messages.addAll(conversation);
+            for (Map<String, String> message : conversation) {
+                JSONObject jsonMessage = new JSONObject();
+                jsonMessage.put("role", message.get("role"));
+                jsonMessage.put("content", message.get("content"));
+                messages.put(jsonMessage);
+            }
             
             requestBody.put("messages", messages);
             
-            // 添加其他参数，优先使用模型特定配置
-            requestBody.put("temperature", getModelConfigValue("temperature", 
-                    configLoader.getConfig("ai.openai.temperature", 0.7)));
-            requestBody.put("max_tokens", getModelConfigValue("max_tokens", 
-                    configLoader.getConfig("ai.openai.max_tokens", 2000)));
+            // 设置温度参数
+            double temperature = getModelConfigValue("temperature", 0.7);
+            requestBody.put("temperature", temperature);
             
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(apiBaseUrl))
-                    .header("Content-Type", "application/json")
-                    .header("Authorization", "Bearer " + apiKey)
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestBody)))
-                    .build();
+            // 设置最大生成Token数
+            int maxTokens = getModelConfigValue("max_tokens", 2000);
+            requestBody.put("max_tokens", maxTokens);
             
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            // 记录请求的基本信息
+            logger.debug("API请求: 模型={}, 温度={}, 最大Token={}", 
+                       mapToApiModelName(), temperature, maxTokens);
             
-            if (response.statusCode() == 200) {
-                Map<String, Object> responseBody = objectMapper.readValue(response.body(), Map.class);
-                List<Map<String, Object>> choices = (List<Map<String, Object>>) responseBody.get("choices");
-                
-                if (choices != null && !choices.isEmpty()) {
-                    Map<String, Object> choice = choices.get(0);
-                    Map<String, String> message = (Map<String, String>) choice.get("message");
-                    return message.get("content");
-                }
-            } else if (response.statusCode() == 401) {
-                logger.error("API密钥无效或已过期，模型：{}", modelName);
-                return "AI服务认证失败，请联系管理员检查API密钥配置。";
-            } else if (response.statusCode() == 429) {
-                logger.error("API请求频率超限或余额不足，模型：{}", modelName);
-                return "AI服务暂时达到使用限制，请稍后再试。";
-            } else if (response.statusCode() >= 500) {
-                logger.error("API服务器错误，模型：{}, 状态码：{}", modelName, response.statusCode());
-                return "AI服务器暂时出现故障，请稍后再试。";
-            } else {
-                logger.error("API调用失败，模型：{}，状态码：{}，响应：{}", 
-                        modelName, response.statusCode(), response.body());
-                return "AI服务暂时出现故障，请稍后再试。";
+            // 从配置中获取API密钥
+            String apiKey = getApiKey();
+            if (apiKey.isEmpty()) {
+                logger.error("未配置API密钥，无法调用OpenAI API");
+                return "API配置错误：未提供有效的API密钥";
             }
             
-            return "AI服务暂时出现故障，请稍后再试。";
+            // 从配置中获取API基础URL
+            String apiBaseUrl = getApiBaseUrl();
             
+            // 构建完整URL
+            String completeUrl = apiBaseUrl + "/v1/chat/completions";
+            logger.debug("API调用URL: {}", completeUrl);
+            
+            // 获取请求超时设置
+            int requestTimeout = getModelConfigValue("request_timeout_seconds", DEFAULT_REQUEST_TIMEOUT_SECONDS);
+            
+            // 构建HTTP请求
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(completeUrl))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + apiKey)
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody.toString()))
+                    .timeout(Duration.ofSeconds(requestTimeout))
+                    .build();
+            
+            // 发送请求
+            logger.debug("发送API请求...");
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            
+            // 记录响应时间
+            long responseTime = System.currentTimeMillis() - startTime;
+            logger.info("收到API响应，状态码: {}, 响应时间: {}毫秒", response.statusCode(), responseTime);
+            
+            // 处理响应
+            if (response.statusCode() == 200) {
+                // 解析响应JSON
+                JSONObject responseJson = new JSONObject(response.body());
+                
+                // 检查是否有choices字段
+                if (responseJson.has("choices") && responseJson.getJSONArray("choices").length() > 0) {
+                    JSONObject choice = responseJson.getJSONArray("choices").getJSONObject(0);
+                    
+                    // 检查message字段
+                    if (choice.has("message") && choice.getJSONObject("message").has("content")) {
+                        String content = choice.getJSONObject("message").getString("content");
+                        
+                        // 记录成功
+                        long totalTime = System.currentTimeMillis() - startTime;
+                        logger.info("AI回复生成成功，总耗时: {}毫秒，回复长度: {}", totalTime, content.length());
+                        
+                        return content;
+                    }
+                }
+                
+                // 如果没有找到内容，记录错误
+                logger.error("无法从API响应中提取内容: {}", response.body());
+                return "API响应格式错误，请联系管理员";
+            } else {
+                // 记录不同的错误状态码
+                String errorMessage = "OpenAI API调用失败，状态码: " + response.statusCode();
+                
+                // 尝试从响应中提取更详细的错误信息
+                try {
+                    JSONObject errorJson = new JSONObject(response.body());
+                    if (errorJson.has("error")) {
+                        JSONObject error = errorJson.getJSONObject("error");
+                        String message = error.optString("message", "未知错误");
+                        String type = error.optString("type", "unknown");
+                        errorMessage += ", 错误类型: " + type + ", 错误信息: " + message;
+                    }
+                } catch (Exception e) {
+                    // 如果解析失败，使用原始响应体
+                    errorMessage += ", 响应: " + response.body();
+                }
+                
+                // 针对不同状态码给出更具体的错误信息
+                if (response.statusCode() == 401) {
+                    logger.error("API密钥无效或过期: {}", errorMessage);
+                    return "API认证失败，请联系管理员更新API密钥";
+                } else if (response.statusCode() == 429) {
+                    logger.error("API请求超出限制: {}", errorMessage);
+                    return "API请求太频繁或已达到配额限制，请稍后再试";
+                } else if (response.statusCode() >= 500) {
+                    logger.error("OpenAI服务器错误: {}", errorMessage);
+                    return "OpenAI服务器暂时不可用，请稍后再试";
+                } else {
+                    logger.error(errorMessage);
+                    return "AI服务调用失败，请稍后再试";
+                }
+            }
         } catch (IOException e) {
-            logger.error("API网络请求异常，模型：{}", modelName, e);
-            return "AI服务网络连接异常，请稍后再试。";
+            logger.error("API请求IO异常", e);
+            return "网络连接错误，无法连接到AI服务：" + e.getMessage();
         } catch (InterruptedException e) {
-            logger.error("API请求被中断，模型：{}", modelName, e);
+            logger.error("API请求被中断", e);
             Thread.currentThread().interrupt();
-            return "AI请求被中断，请稍后再试。";
+            return "请求被中断，请稍后再试";
         } catch (Exception e) {
-            logger.error("API调用过程中发生未预期异常，模型：{}", modelName, e);
-            return "AI服务发生未知错误，请稍后再试。";
+            logger.error("调用OpenAI API时发生未知错误", e);
+            return "生成回复时发生错误: " + e.getMessage();
+        }
+    }
+    
+    /**
+     * 将内部模型名映射到API请求中使用的模型名
+     */
+    private String mapToApiModelName() {
+        // 从模型配置中获取API模型名称，如果没有配置则使用内部模型名
+        String apiModelName = getModelConfigValue("api_model_name", "");
+        if (!apiModelName.isEmpty()) {
+            return apiModelName;
+        }
+        
+        // 默认内部模型名可能与API模型名相同
+        return modelName;
+    }
+    
+    /**
+     * 获取API密钥
+     */
+    private String getApiKey() {
+        // 首先尝试从模型配置中获取
+        String apiKey = getModelConfigValue("api_key", "");
+        
+        // 如果模型配置中没有，从全局配置中获取
+        if (apiKey.isEmpty()) {
+            apiKey = configLoader.getConfigString("ai.openai.api_key", "");
+        }
+        
+        return apiKey;
+    }
+    
+    /**
+     * 获取API基础URL
+     */
+    private String getApiBaseUrl() {
+        // 首先尝试从模型配置中获取
+        String apiBaseUrl = getModelConfigValue("api_base_url", "");
+        
+        // 如果模型配置中没有，从全局配置中获取，默认为官方API
+        if (apiBaseUrl.isEmpty()) {
+            apiBaseUrl = configLoader.getConfigString("ai.openai.api_base_url", "https://api.openai.com");
+        }
+        
+        return apiBaseUrl;
+    }
+    
+    /**
+     * 从模型配置中获取字符串值
+     */
+    private String getModelConfigValue(String key, String defaultValue) {
+        Object value = modelConfig.get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        return value.toString();
+    }
+    
+    /**
+     * 从模型配置中获取泛型值
+     */
+    @SuppressWarnings("unchecked")
+    private <T> T getModelConfigValue(String key, T defaultValue) {
+        Object value = modelConfig.get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        
+        try {
+            // 尝试类型转换
+            if (defaultValue instanceof Number && value instanceof Number) {
+                if (defaultValue instanceof Integer) {
+                    return (T) Integer.valueOf(((Number) value).intValue());
+                } else if (defaultValue instanceof Double) {
+                    return (T) Double.valueOf(((Number) value).doubleValue());
+                }
+            }
+            return (T) value;
+        } catch (ClassCastException e) {
+            logger.warn("配置值类型转换失败, key: {}, value: {}", key, value, e);
+            return defaultValue;
         }
     }
     
@@ -136,36 +283,11 @@ public class OpenAIModel implements AIModel {
     
     @Override
     public String getDescription() {
-        return "OpenAI模型";
+        return (String) modelConfig.getOrDefault("description", "OpenAI模型");
     }
     
     @Override
     public String getType() {
         return "openai";
-    }
-    
-    private String getModelConfigValue(String key, String defaultValue) {
-        if (modelConfig == null) return defaultValue;
-        
-        Object value = modelConfig.get(key);
-        if (value instanceof String) {
-            String strValue = (String) value;
-            return strValue.isEmpty() ? defaultValue : strValue;
-        }
-        return defaultValue;
-    }
-    
-    @SuppressWarnings("unchecked")
-    private <T> T getModelConfigValue(String key, T defaultValue) {
-        if (modelConfig == null) return defaultValue;
-        
-        Object value = modelConfig.get(key);
-        if (value == null) return defaultValue;
-        
-        try {
-            return (T) value;
-        } catch (ClassCastException e) {
-            return defaultValue;
-        }
     }
 } 

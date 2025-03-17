@@ -12,6 +12,8 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class DataManager {
     private static final Logger logger = LoggerFactory.getLogger(DataManager.class);
@@ -99,42 +101,83 @@ public class DataManager {
         }
     }
     
-    public void saveData() {
+    /**
+     * 保存数据
+     */
+    public synchronized void saveData() {
+        // 使用临时文件，避免保存失败导致数据丢失
+        String tempFileName = DATA_FILE + ".temp";
         try {
-            Map<String, Object> data = new HashMap<>();
-            
-            // 保存群组数据
-            Map<String, Object> groups = new HashMap<>();
-            for (Map.Entry<String, Object> entry : getDataMap("groups").entrySet()) {
-                groups.put(entry.getKey(), entry.getValue());
-            }
-            data.put("groups", groups);
-            
-            // 保存用户数据（确保userData不为null）
-            Map<String, Object> users = new HashMap<>();
-            if (userData != null) {
-                for (Map.Entry<String, Map<String, Object>> entry : userData.entrySet()) {
-                    users.put(entry.getKey(), entry.getValue());
-                }
-            } else {
-                logger.warn("userData为null，创建空map");
-                userData = new ConcurrentHashMap<>();
-            }
-            data.put("users", users);
-            
-            // 保存数据
             DumperOptions options = new DumperOptions();
             options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
             options.setPrettyFlow(true);
             
             Yaml yaml = new Yaml(options);
-            try (Writer writer = new FileWriter(DATA_FILE)) {
+            
+            // 先写入临时文件
+            try (Writer writer = new FileWriter(tempFileName)) {
                 yaml.dump(data, writer);
             }
-            logger.info("数据保存成功");
+            
+            // 成功写入临时文件后，替换原文件
+            File tempFile = new File(tempFileName);
+            File dataFile = new File(DATA_FILE);
+            if (dataFile.exists() && !dataFile.delete()) {
+                logger.warn("无法删除原数据文件，将尝试直接覆盖");
+            }
+            
+            if (tempFile.renameTo(dataFile)) {
+                logger.info("数据保存成功");
+            } else {
+                // 如果重命名失败，尝试复制内容
+                try (FileReader reader = new FileReader(tempFileName);
+                     FileWriter writer = new FileWriter(DATA_FILE)) {
+                    char[] buffer = new char[1024];
+                    int length;
+                    while ((length = reader.read(buffer)) > 0) {
+                        writer.write(buffer, 0, length);
+                    }
+                    logger.info("数据通过复制方式保存成功");
+                }
+            }
         } catch (IOException e) {
-            logger.error("数据保存失败", e);
+            logger.error("保存数据失败", e);
+        } finally {
+            // 清理临时文件
+            try {
+                File tempFile = new File(tempFileName);
+                if (tempFile.exists()) {
+                    tempFile.delete();
+                }
+            } catch (Exception e) {
+                logger.warn("清理临时文件失败", e);
+            }
         }
+    }
+    
+    /**
+     * 获取数据中的Map
+     * @param key 数据键
+     * @return 数据Map，如果不存在则返回空Map
+     */
+    @SuppressWarnings("unchecked")
+    public synchronized Map<String, Object> getDataMap(String key) {
+        if (data.containsKey(key)) {
+            Object value = data.get(key);
+            if (value instanceof Map) {
+                try {
+                    return (Map<String, Object>) value;
+                } catch (ClassCastException e) {
+                    logger.error("数据类型转换失败: {}", key, e);
+                }
+            } else {
+                logger.warn("数据类型不是Map: {}, 实际类型: {}", key, value != null ? value.getClass().getName() : "null");
+            }
+        }
+        // 如果不存在或类型错误，创建新的Map
+        Map<String, Object> newMap = new HashMap<>();
+        data.put(key, newMap);
+        return newMap;
     }
     
     private void createDefaultData() {
@@ -165,17 +208,6 @@ public class DataManager {
         } catch (IOException e) {
             logger.error("创建默认数据文件失败", e);
         }
-    }
-    
-    @SuppressWarnings("unchecked")
-    public Map<String, Object> getDataMap(String key) {
-        Object value = data.get(key);
-        if (value instanceof Map) {
-            return (Map<String, Object>) value;
-        }
-        Map<String, Object> emptyMap = new HashMap<>();
-        data.put(key, emptyMap);
-        return emptyMap;
     }
     
     // 群组相关方法
@@ -213,7 +245,7 @@ public class DataManager {
      * 获取群组数据，如果不存在则创建默认数据
      */
     @SuppressWarnings("unchecked")
-    public Map<String, Object> getGroupData(String groupId) {
+    public synchronized Map<String, Object> getGroupData(String groupId) {
         Map<String, Object> groups = getDataMap("groups");
         
         if (!groups.containsKey(groupId)) {
@@ -221,10 +253,29 @@ public class DataManager {
             Map<String, Object> defaultGroupData = new HashMap<>();
             defaultGroupData.put("ai_enabled", false); // 默认禁用AI
             groups.put(groupId, defaultGroupData);
-            saveData(); // 立即保存，确保数据持久化
+            // 延迟保存，避免频繁IO操作
+            new Timer().schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    saveData();
+                }
+            }, 5000);
         }
         
-        return (Map<String, Object>) groups.get(groupId);
+        Object groupData = groups.get(groupId);
+        if (groupData instanceof Map) {
+            try {
+                return (Map<String, Object>) groupData;
+            } catch (ClassCastException e) {
+                logger.error("群组数据类型转换失败: {}", groupId, e);
+            }
+        }
+        
+        // 如果数据类型不正确，创建新的Map
+        Map<String, Object> newGroupData = new HashMap<>();
+        newGroupData.put("ai_enabled", false);
+        groups.put(groupId, newGroupData);
+        return newGroupData;
     }
     
     // 用户相关方法

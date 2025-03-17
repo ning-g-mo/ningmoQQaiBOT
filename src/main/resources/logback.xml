@@ -1,38 +1,79 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<configuration>
-    <!-- 控制台日志输出 -->
+<configuration scan="true" scanPeriod="60 seconds">
+
+    <!-- 定义参数 -->
+    <property name="LOG_PATH" value="logs"/>
+    <property name="PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+    <property name="LOG_LEVEL" value="${log.level:-INFO}"/>
+    <property name="PROJECT_LOG_LEVEL" value="${log.project.level:-DEBUG}"/>
+    
+    <!-- 控制台输出 -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder charset="UTF-8">
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        <encoder>
+            <pattern>${PATTERN}</pattern>
             <charset>UTF-8</charset>
         </encoder>
     </appender>
-
-    <!-- 文件日志输出 -->
+    
+    <!-- 主程序日志文件 -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/bot.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>logs/bot-%d{yyyy-MM-dd}.log</fileNamePattern>
-            <maxHistory>30</maxHistory>
-        </rollingPolicy>
-        <encoder charset="UTF-8">
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        <file>${LOG_PATH}/ningmo-ai.log</file>
+        <encoder>
+            <pattern>${PATTERN}</pattern>
             <charset>UTF-8</charset>
         </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/history/ningmo-ai.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
     </appender>
-
-    <!-- 从系统属性或默认值获取日志级别 -->
-    <property name="log.level" value="${log.level:-INFO}" />
-
-    <!-- 项目日志级别 -->
-    <logger name="cn.ningmo" level="${log.project.level:-INFO}" />
-
-    <!-- 根日志级别 -->
-    <root level="${log.level}">
-        <appender-ref ref="CONSOLE" />
-        <appender-ref ref="FILE" />
+    
+    <!-- 错误日志文件 -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/error.log</file>
+        <encoder>
+            <pattern>${PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>WARN</level>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/history/error.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>500MB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+    
+    <!-- 异步输出 -->
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <discardingThreshold>0</discardingThreshold>
+        <queueSize>1024</queueSize>
+        <appender-ref ref="FILE"/>
+    </appender>
+    
+    <appender name="ASYNC_ERROR" class="ch.qos.logback.classic.AsyncAppender">
+        <discardingThreshold>0</discardingThreshold>
+        <queueSize>512</queueSize>
+        <appender-ref ref="ERROR_FILE"/>
+    </appender>
+    
+    <!-- 其他库的日志设置 -->
+    <logger name="org.java_websocket" level="${LOG_LEVEL}"/>
+    <logger name="org.slf4j" level="${LOG_LEVEL}"/>
+    <logger name="ch.qos.logback" level="${LOG_LEVEL}"/>
+    
+    <!-- 项目日志设置 -->
+    <logger name="cn.ningmo" level="${PROJECT_LOG_LEVEL}"/>
+    
+    <!-- 根日志设置 -->
+    <root level="${LOG_LEVEL}">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ASYNC_FILE"/>
+        <appender-ref ref="ASYNC_ERROR"/>
     </root>
-
-    <!-- 第三方库的日志级别 -->
-    <logger name="org.java_websocket" level="INFO"/>
+    
 </configuration> 

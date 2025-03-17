@@ -19,6 +19,15 @@ bot:
     # 发送多条消息的间隔时间(毫秒)
     interval: 300
 
+# GUI配置
+gui:
+  # 是否启用GUI
+  enabled: true
+  # 是否在启动时显示GUI
+  show_on_startup: true
+  # 是否启用系统托盘
+  use_system_tray: true
+
 # AI相关配置
 ai:
   # 最大对话长度（保留的消息数）

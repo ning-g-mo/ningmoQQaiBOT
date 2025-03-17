@@ -8,188 +8,382 @@ import cn.ningmo.utils.CommonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Arrays;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * AI服务
+ * 用于处理AI对话请求
+ */
 public class AIService {
     private static final Logger logger = LoggerFactory.getLogger(AIService.class);
     
     private final ConfigLoader configLoader;
     private final DataManager dataManager;
-    private final ModelManager modelManager;
-    private final PersonaManager personaManager;
+    private ModelManager modelManager;
+    private PersonaManager personaManager;
     
-    // 用户会话: userId -> 消息历史
-    private final Map<String, List<Map<String, String>>> conversations;
+    // 对话历史缓存，使用ConcurrentHashMap保证线程安全
+    private final Map<String, List<Map<String, String>>> conversations = new ConcurrentHashMap<>();
     
-    // 多段消息分隔符
+    // 用于限制每个用户请求频率的时间戳记录
+    private final Map<String, Long> userLastRequestTime = new ConcurrentHashMap<>();
+    
+    // 用于缓存AI响应的结果，避免重复计算
+    private final Map<String, CompletableFuture<String>> pendingRequests = new ConcurrentHashMap<>();
+    
+    // 消息分隔符
     private static final String MESSAGE_SEPARATOR = "\\n---\\n";
     private static final Pattern SEPARATOR_PATTERN = Pattern.compile(MESSAGE_SEPARATOR);
+    
+    // 执行AI请求的线程池，使用有界队列避免积压过多请求
+    private final ExecutorService aiExecutor;
+    
+    // 限制每个用户的请求频率（毫秒）
+    private final long minRequestInterval;
     
     public AIService(ConfigLoader configLoader, DataManager dataManager) {
         this.configLoader = configLoader;
         this.dataManager = dataManager;
         this.modelManager = new ModelManager(configLoader);
         this.personaManager = new PersonaManager(configLoader);
-        this.conversations = new HashMap<>();
+        
+        // 创建AI执行线程池，避免过多线程争抢资源
+        int corePoolSize = Math.max(2, Runtime.getRuntime().availableProcessors() / 2);
+        this.aiExecutor = new ThreadPoolExecutor(
+            corePoolSize, corePoolSize,
+            60L, TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(20), // 有界队列，避免OOM
+            r -> {
+                Thread t = new Thread(r, "AI-Worker-" + System.currentTimeMillis());
+                t.setDaemon(true);
+                return t;
+            },
+            new ThreadPoolExecutor.CallerRunsPolicy() // 队列满时，在调用线程执行
+        );
+        
+        // 设置最小请求间隔，默认500毫秒，防止用户过于频繁请求
+        this.minRequestInterval = configLoader.getConfig("ai.min_request_interval", 500L);
+        
+        logger.info("AI服务初始化完成，工作线程数: {}, 最小请求间隔: {}ms", corePoolSize, minRequestInterval);
+        
+        // 定期清理缓存
+        startCacheCleanupScheduler();
     }
     
     /**
-     * 与AI聊天并获取回复（单条消息）
+     * 处理AI聊天请求
+     * @param userId 用户ID
+     * @param message 消息内容
+     * @return AI回复
      */
     public String chat(String userId, String message) {
-        List<String> replies = chatMultipart(userId, message);
-        if (replies.isEmpty()) {
-            return "";
+        // 频率限制检查
+        if (!checkRequestLimit(userId)) {
+            logger.debug("用户{}请求过于频繁", userId);
+            return "请求过于频繁，请稍后再试";
         }
-        return String.join("\n\n", replies);
-    }
-    
-    /**
-     * 与AI聊天并获取多段回复
-     * @return 多段消息列表，如果AI选择不回复，返回空列表
-     */
-    public List<String> chatMultipart(String userId, String message) {
-        // 获取用户当前的模型
-        String modelName = dataManager.getUserModel(userId);
-        // 如果用户模型是默认的gpt-3.5-turbo，检查配置文件中的默认设置
-        if (modelName.equals("gpt-3.5-turbo")) {
-            String configDefault = configLoader.getConfigString("ai.default_model", "");
-            if (!configDefault.isEmpty() && modelManager.hasModel(configDefault)) {
-                modelName = configDefault;
+        
+        // 构建请求唯一标识，用于缓存和去重
+        String requestKey = userId + ":" + message.hashCode();
+        
+        // 检查是否有相同请求正在处理中
+        CompletableFuture<String> pendingRequest = pendingRequests.get(requestKey);
+        if (pendingRequest != null && !pendingRequest.isDone()) {
+            try {
+                // 等待已有请求完成，最多等待10秒
+                return pendingRequest.get(10, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                logger.warn("等待已有请求超时，将重新处理", e);
+                // 超时则继续处理
             }
         }
         
-        // 获取用户当前的人设
-        String personaName = dataManager.getUserPersona(userId);
+        // 创建新的异步请求
+        CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> {
+            try {
+                // 获取用户设置的个性化模型和人设
+                String modelName = dataManager.getUserModel(userId);
+                String persona = dataManager.getUserPersona(userId);
+                
+                // 获取AI回复
+                return generateAIReply(userId, message, modelName, persona);
+            } catch (Exception e) {
+                logger.error("生成AI回复时出错", e);
+                return "AI服务暂时出现问题，请稍后再试。错误：" + e.getMessage();
+            }
+        }, aiExecutor);
         
-        // 获取或创建用户会话
+        // 缓存请求
+        pendingRequests.put(requestKey, future);
+        
+        try {
+            // 等待请求完成，设置超时
+            return future.get(30, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            logger.error("AI请求超时", e);
+            return "AI服务响应超时，请稍后再试";
+        } catch (Exception e) {
+            logger.error("等待AI回复时出错", e);
+            return "处理请求时出错：" + e.getMessage();
+        } finally {
+            // 无论成功与否，标记请求完成
+            future.whenComplete((result, ex) -> pendingRequests.remove(requestKey));
+        }
+    }
+    
+    /**
+     * 处理AI聊天请求并返回可能的多段回复
+     * @param userId 用户ID
+     * @param message 消息内容
+     * @return AI回复列表
+     */
+    public List<String> chatMultipart(String userId, String message) {
+        // 获取单个回复
+        String reply = chat(userId, message);
+        
+        // 切分多段回复
+        return splitMessage(reply);
+    }
+    
+    /**
+     * 生成AI回复
+     */
+    private String generateAIReply(String userId, String message, String modelName, String persona) {
+        // 获取对话历史
         List<Map<String, String>> conversation = getOrCreateConversation(userId);
         
-        // 获取人设系统提示
-        String systemPrompt = personaManager.getPersonaPrompt(personaName);
-        
-        // 添加多段消息提示
-        systemPrompt += "\n\n如果你想发送多条消息，请在消息之间使用 \\n---\\n 作为分隔符。这样系统会将你的回复拆分成多条单独发送。" +
-                      "如果认为不需要回复，可以回复 [NO_RESPONSE] 表示不发送任何消息。";
-        
-        // 将用户消息添加到会话
+        // 添加用户消息到对话历史
         Map<String, String> userMessage = new HashMap<>();
         userMessage.put("role", "user");
         userMessage.put("content", message);
         conversation.add(userMessage);
         
-        try {
-            // 调用AI模型生成回复
-            logger.info("用户 {} 使用模型 {} 和人设 {} 生成回复", userId, modelName, personaName);
-            String aiReply = modelManager.generateReply(modelName, systemPrompt, conversation);
-            
-            // 检查是否是不回复的指令
-            if (aiReply.trim().equals("[NO_RESPONSE]")) {
-                logger.info("AI选择不回复消息");
-                
-                // 将AI回复添加到会话，但不发送
-                Map<String, String> assistantMessage = new HashMap<>();
-                assistantMessage.put("role", "assistant");
-                assistantMessage.put("content", "");
-                conversation.add(assistantMessage);
-                
-                return new ArrayList<>();
-            }
-            
-            // 将AI回复添加到会话
-            Map<String, String> assistantMessage = new HashMap<>();
-            assistantMessage.put("role", "assistant");
-            assistantMessage.put("content", aiReply);
-            conversation.add(assistantMessage);
-            
-            // 限制会话长度，防止过长
-            int maxConversationLength = configLoader.getConfig("ai.max_conversation_length", 20);
-            while (conversation.size() > maxConversationLength) {
-                conversation.remove(0);
-            }
-            
-            // 拆分回复为多段消息
-            List<String> messageParts = splitMessage(aiReply);
-            
-            // 获取配置中最大连续消息数量
-            int maxConsecutive = configLoader.getConfig("bot.messages.max_consecutive", 3);
-            if (maxConsecutive > 0 && messageParts.size() > maxConsecutive) {
-                logger.info("AI生成的消息数量({})超过了最大限制({}), 将被截断", messageParts.size(), maxConsecutive);
-                messageParts = messageParts.subList(0, maxConsecutive);
-            }
-            
-            return messageParts;
-        } catch (Exception e) {
-            logger.error("生成AI回复时发生错误", e);
-            // 从会话中移除失败的请求，避免影响后续对话
-            if (!conversation.isEmpty()) {
-                conversation.remove(conversation.size() - 1);
-            }
-            
-            // 返回错误消息
-            List<String> errorMessage = new ArrayList<>();
-            errorMessage.add("抱歉，AI生成回复时出现错误：" + e.getMessage());
-            return errorMessage;
+        // 获取系统提示（人设）
+        String systemPrompt = personaManager.getPersonaPrompt(persona);
+        if (systemPrompt == null || systemPrompt.isEmpty()) {
+            systemPrompt = "你是一个友好、有帮助的AI助手。请用中文回答问题。";
         }
+        
+        // 生成AI回复
+        long startTime = System.currentTimeMillis();
+        String aiReply = modelManager.generateReply(modelName, systemPrompt, conversation);
+        long endTime = System.currentTimeMillis();
+        logger.debug("AI响应生成耗时: {}ms", (endTime - startTime));
+        
+        // 添加AI回复到对话历史
+        Map<String, String> assistantMessage = new HashMap<>();
+        assistantMessage.put("role", "assistant");
+        assistantMessage.put("content", aiReply);
+        conversation.add(assistantMessage);
+        
+        // 裁剪对话历史，保持在配置的长度以内
+        int maxConversationLength = configLoader.getConfig("ai.max_conversation_length", 20);
+        while (conversation.size() > maxConversationLength) {
+            conversation.remove(0);
+        }
+        
+        return aiReply;
     }
     
     /**
-     * 将消息按分隔符拆分为多段
+     * 切分多段消息
      */
     private List<String> splitMessage(String message) {
-        // 使用分隔符拆分消息
-        String[] parts = SEPARATOR_PATTERN.split(message);
+        if (message == null || message.isEmpty()) {
+            return Collections.emptyList();
+        }
         
-        // 过滤并整理消息段
-        List<String> result = new ArrayList<>();
-        for (String part : parts) {
-            String trimmed = part.trim();
-            if (!trimmed.isEmpty()) {
-                result.add(trimmed);
+        // 检查是否包含分隔符
+        if (!message.contains(MESSAGE_SEPARATOR.replace("\\", ""))) {
+            return Collections.singletonList(message);
+        }
+        
+        // 使用分隔符切分消息
+        List<String> parts = new ArrayList<>();
+        Matcher matcher = SEPARATOR_PATTERN.matcher(message);
+        int lastEnd = 0;
+        
+        while (matcher.find()) {
+            parts.add(message.substring(lastEnd, matcher.start()).trim());
+            lastEnd = matcher.end();
+        }
+        
+        // 添加最后一部分
+        if (lastEnd < message.length()) {
+            parts.add(message.substring(lastEnd).trim());
+        }
+        
+        // 过滤空消息段
+        parts.removeIf(String::isEmpty);
+        
+        // 限制最大段数，避免消息洪水
+        int maxParts = configLoader.getConfig("bot.messages.max_consecutive", 3);
+        if (maxParts > 0 && parts.size() > maxParts) {
+            return parts.subList(0, maxParts);
+        }
+        
+        return parts;
+    }
+    
+    /**
+     * 获取或创建用户对话历史
+     */
+    private List<Map<String, String>> getOrCreateConversation(String userId) {
+        return conversations.computeIfAbsent(userId, k -> new CopyOnWriteArrayList<>());
+    }
+    
+    /**
+     * 清除用户对话历史
+     */
+    public void clearConversation(String userId) {
+        conversations.remove(userId);
+        logger.info("已清除用户{}的对话历史", userId);
+    }
+    
+    /**
+     * 获取用户对话历史摘要
+     */
+    public String getConversationSummary(String userId) {
+        List<Map<String, String>> conversation = conversations.get(userId);
+        
+        if (conversation == null || conversation.isEmpty()) {
+            return "没有对话历史";
+        }
+        
+        StringBuilder summary = new StringBuilder();
+        summary.append("对话历史（").append(conversation.size()).append("条消息）：\n\n");
+        
+        int i = 1;
+        for (Map<String, String> message : conversation) {
+            String role = message.get("role");
+            String content = message.get("content");
+            
+            summary.append(i).append(". ");
+            summary.append(role.equals("user") ? "用户: " : "AI: ");
+            
+            // 截断过长的消息
+            if (content.length() > 100) {
+                content = content.substring(0, 100) + "...";
+            }
+            
+            summary.append(content).append("\n");
+            i++;
+        }
+        
+        return summary.toString();
+    }
+    
+    /**
+     * 检查请求限制
+     * @return 是否允许请求
+     */
+    private boolean checkRequestLimit(String userId) {
+        long now = System.currentTimeMillis();
+        Long lastRequestTime = userLastRequestTime.get(userId);
+        
+        if (lastRequestTime != null) {
+            if (now - lastRequestTime < minRequestInterval) {
+                return false;
             }
         }
         
-        // 如果拆分后为空，则至少保留一条消息
-        if (result.isEmpty() && !message.trim().isEmpty()) {
-            result.add(message.trim());
-        }
-        
-        return result;
+        userLastRequestTime.put(userId, now);
+        return true;
     }
     
-    private List<Map<String, String>> getOrCreateConversation(String userId) {
-        return conversations.computeIfAbsent(userId, k -> new ArrayList<>());
-    }
-    
-    public void clearConversation(String userId) {
-        conversations.computeIfPresent(userId, (id, conversation) -> {
-            conversation.clear();
-            return conversation;
+    /**
+     * 启动缓存清理任务
+     */
+    private void startCacheCleanupScheduler() {
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "AIService-Cache-Cleaner");
+            t.setDaemon(true);
+            return t;
         });
-        logger.info("已清除用户 {} 的对话历史", userId);
+        
+        scheduler.scheduleAtFixedRate(() -> {
+            try {
+                // 清理过期的请求记录
+                long now = System.currentTimeMillis();
+                Iterator<Map.Entry<String, Long>> it = userLastRequestTime.entrySet().iterator();
+                while (it.hasNext()) {
+                    Map.Entry<String, Long> entry = it.next();
+                    // 超过30分钟的记录清除
+                    if (now - entry.getValue() > 30 * 60 * 1000) {
+                        it.remove();
+                    }
+                }
+                
+                // 清理已完成但未移除的pendingRequests
+                Iterator<Map.Entry<String, CompletableFuture<String>>> it2 = pendingRequests.entrySet().iterator();
+                while (it2.hasNext()) {
+                    Map.Entry<String, CompletableFuture<String>> entry = it2.next();
+                    if (entry.getValue().isDone()) {
+                        it2.remove();
+                    }
+                }
+                
+                // 限制对话历史占用内存
+                if (conversations.size() > 1000) { // 如果超过1000个用户的对话
+                    // 找出最旧的对话并移除
+                    List<String> oldestUsers = new ArrayList<>(conversations.keySet());
+                    // 保留最新的500个
+                    if (oldestUsers.size() > 500) {
+                        oldestUsers.subList(0, oldestUsers.size() - 500).forEach(conversations::remove);
+                    }
+                }
+            } catch (Exception e) {
+                logger.error("缓存清理任务异常", e);
+            }
+        }, 5, 5, TimeUnit.MINUTES);
     }
     
-    public String getConversationSummary(String userId) {
-        List<Map<String, String>> conversation = getOrCreateConversation(userId);
-        if (conversation.isEmpty()) {
-            return "无对话历史";
+    /**
+     * 获取模型管理器
+     */
+    public ModelManager getModelManager() {
+        return modelManager;
+    }
+    
+    /**
+     * 设置模型管理器
+     */
+    public void setModelManager(ModelManager modelManager) {
+        this.modelManager = modelManager;
+    }
+    
+    /**
+     * 获取人设管理器
+     */
+    public PersonaManager getPersonaManager() {
+        return personaManager;
+    }
+    
+    /**
+     * 设置人设管理器
+     */
+    public void setPersonaManager(PersonaManager personaManager) {
+        this.personaManager = personaManager;
+    }
+    
+    /**
+     * 关闭资源
+     */
+    public void shutdown() {
+        if (aiExecutor != null && !aiExecutor.isShutdown()) {
+            logger.info("正在关闭AI服务线程池...");
+            aiExecutor.shutdown();
+            try {
+                if (!aiExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    aiExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                aiExecutor.shutdownNow();
+            }
+            logger.info("AI服务线程池已关闭");
         }
-        
-        StringBuilder sb = new StringBuilder("当前对话历史：\n");
-        int count = Math.min(conversation.size(), 3);  // 最多显示最近3条
-        for (int i = conversation.size() - count; i < conversation.size(); i++) {
-            Map<String, String> message = conversation.get(i);
-            sb.append(message.get("role")).append(": ")
-              .append(CommonUtils.truncateText(message.get("content"), 50))
-              .append("\n");
-        }
-        
-        return sb.toString();
     }
 } 
