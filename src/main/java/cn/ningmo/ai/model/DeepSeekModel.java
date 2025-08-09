@@ -108,7 +108,7 @@ public class DeepSeekModel implements AIModel {
                             
                             if (response.statusCode() == 200) {
                                 logger.info("使用fallback模型成功");
-                                return parseResponse(response.body());
+                                return ResponseParser.parseResponse(response.body(), "DeepSeek");
                             } else {
                                 logger.error("使用fallback模型仍然失败: {}", response.body());
                                 return "DeepSeek API不支持请求的模型，并且降级尝试也失败。请联系管理员配置正确的模型。";
