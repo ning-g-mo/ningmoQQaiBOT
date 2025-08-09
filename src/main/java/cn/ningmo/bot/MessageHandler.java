@@ -550,6 +550,12 @@ public class MessageHandler {
                 // 处理转义字符
                 aiReply = processEscapeSequences(aiReply);
                 
+                // 检查是否为NO_RESPONSE指令
+                if (aiReply.trim().equals("[NO_RESPONSE]")) {
+                    logger.info("AI选择不回复消息，群: {}, 用户: {}", groupId, userId);
+                    return;
+                }
+                
                 // 发送回复
                 logger.info("AI已回复，准备发送到群{}, 回复长度: {}", groupId, aiReply.length());
                 
@@ -699,6 +705,12 @@ public class MessageHandler {
                 
                 // 处理转义字符
                 aiReply = processEscapeSequences(aiReply);
+                
+                // 检查是否为NO_RESPONSE指令
+                if (aiReply.trim().equals("[NO_RESPONSE]")) {
+                    logger.info("AI选择不回复消息，用户: {}", userId);
+                    return;
+                }
                 
                 // 检查回复是否包含多段消息分隔符
                 if (aiReply.contains("\n---\n")) {
@@ -1063,10 +1075,21 @@ public class MessageHandler {
                 return;
             }
             
-            // 如果AI已关闭且用户不是管理员，拒绝执行命令
-            if (!aiEnabled && !isAdmin && !isGroupAdmin) {
-                botClient.sendGroupMessage(groupId, "本群AI功能已关闭，只有管理员可以使用命令。");
-                return;
+            // 如果AI已关闭，只允许超级管理员执行开启命令和帮助命令
+            if (!aiEnabled) {
+                // 允许的命令：帮助、开启（仅超级管理员）
+                if (cmdLower.equals("开启")) {
+                    // 开启命令只允许超级管理员执行
+                    if (!isAdmin) {
+                        botClient.sendGroupMessage(groupId, "本群AI功能已关闭，只有超级管理员可以开启。");
+                        return;
+                    }
+                    // 超级管理员可以继续执行开启命令
+                } else {
+                    // 其他所有命令都被拒绝
+                    botClient.sendGroupMessage(groupId, "本群AI功能已关闭，请联系超级管理员开启。");
+                    return;
+                }
             }
             
             // 管理员命令检查

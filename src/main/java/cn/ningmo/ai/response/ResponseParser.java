@@ -201,9 +201,15 @@ public class ResponseParser {
         for (FormatParser parser : parsers) {
             try {
                 String result = parser.parse(response);
-                if (result != null && !result.trim().isEmpty()) {
-                    logger.debug("{}模型使用{}格式解析成功", modelName, parser.getClass().getSimpleName());
-                    return result.trim();
+                if (result != null) {
+                    // 空字符串也是有效的响应（可能表示模型选择不回复）
+                    if (result.trim().isEmpty()) {
+                        logger.debug("{}模型返回空内容（可能表示不回复）", modelName);
+                        return "[NO_RESPONSE]"; // 将空内容转换为NO_RESPONSE指令
+                    } else {
+                        logger.debug("{}模型使用{}格式解析成功", modelName, parser.getClass().getSimpleName());
+                        return result.trim();
+                    }
                 }
             } catch (Exception e) {
                 logger.debug("{}模型{}格式解析失败: {}", modelName, parser.getClass().getSimpleName(), e.getMessage());
