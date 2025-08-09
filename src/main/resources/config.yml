@@ -4,6 +4,8 @@
 bot:
   # onebot WebSocket地址
   ws_url: "ws://127.0.0.1:3001"
+  # onebot访问令牌（用于WebSocket连接认证，可选）
+  access_token: ""
   # 机器人QQ号
   self_id: "3436464181"
   # 管理员列表（可以执行管理命令）

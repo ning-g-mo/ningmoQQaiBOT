@@ -62,7 +62,7 @@ public class OneBotClient extends WebSocketClient {
     private final Map<String, Deque<Long>> messageSendTimes = new ConcurrentHashMap<>();
     
     public OneBotClient(String serverUri, ConfigLoader configLoader, DataManager dataManager, BlacklistManager blacklistManager, FilterWordManager filterWordManager) {
-        super(createURI(serverUri));
+        super(createURI(serverUri), createHeaders(configLoader));
         this.configLoader = configLoader;
         this.dataManager = dataManager;
         this.blacklistManager = blacklistManager;
@@ -83,9 +83,37 @@ public class OneBotClient extends WebSocketClient {
         }
     }
     
+    /**
+     * 创建WebSocket连接头，包含认证信息
+     */
+    private static Map<String, String> createHeaders(ConfigLoader configLoader) {
+        Map<String, String> headers = new HashMap<>();
+        
+        // 获取访问令牌
+        String accessToken = configLoader.getConfigString("bot.access_token", "");
+        
+        if (!accessToken.isEmpty()) {
+            // 添加Authorization头，使用Bearer认证
+            headers.put("Authorization", "Bearer " + accessToken);
+            logger.debug("已添加OneBot访问令牌到WebSocket连接头");
+        } else {
+            logger.debug("未配置OneBot访问令牌，使用匿名连接");
+        }
+        
+        // 添加User-Agent头
+        headers.put("User-Agent", "NingmoAIBot/1.0");
+        
+        return headers;
+    }
+    
     @Override
     public void onOpen(ServerHandshake handshakedata) {
-        logger.info("WebSocket连接已建立，状态码：{}", handshakedata.getHttpStatus());
+        String accessToken = configLoader.getConfigString("bot.access_token", "");
+        if (!accessToken.isEmpty()) {
+            logger.info("WebSocket连接已建立（使用访问令牌认证），状态码：{}", handshakedata.getHttpStatus());
+        } else {
+            logger.info("WebSocket连接已建立（匿名连接），状态码：{}", handshakedata.getHttpStatus());
+        }
         
         // 停止重连定时器
         stopReconnectTimer();
