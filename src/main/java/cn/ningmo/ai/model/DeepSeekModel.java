@@ -37,7 +37,7 @@ public class DeepSeekModel implements AIModel {
     }
     
     @Override
-    public String generateReply(String systemPrompt, List<Map<String, String>> conversation) {
+    public String generateReply(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt) {
         try {
             String apiKey = getApiKey();
             String apiBaseUrl = getApiBaseUrl();
@@ -47,7 +47,7 @@ public class DeepSeekModel implements AIModel {
                 return "DeepSeek AI服务暂时不可用，请联系管理员配置API密钥。";
             }
             
-            JSONObject requestBody = buildRequestBody(systemPrompt, conversation);
+            JSONObject requestBody = buildRequestBody(systemPrompt, conversation, personaAsSystemPrompt);
             String requestJson = requestBody.toString(2); // 格式化的JSON
             logger.debug("DeepSeek API请求体: {}", requestJson);
             
@@ -133,7 +133,7 @@ public class DeepSeekModel implements AIModel {
         }
     }
     
-    private JSONObject buildRequestBody(String systemPrompt, List<Map<String, String>> conversation) {
+    private JSONObject buildRequestBody(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt) {
         JSONObject requestBody = new JSONObject();
         
         // 设置模型名称 - 修复模型名称映射
@@ -143,22 +143,43 @@ public class DeepSeekModel implements AIModel {
         requestBody.put("model", apiModelName);
         logger.debug("使用DeepSeek模型: {}", apiModelName);
         
-        // 构建消息数组
-        JSONArray messages = new JSONArray();
-        
-        // 添加系统消息
-        JSONObject systemMessage = new JSONObject();
-        systemMessage.put("role", "system");
-        systemMessage.put("content", systemPrompt);
-        messages.put(systemMessage);
-        
-        // 添加对话历史
-        for (Map<String, String> message : conversation) {
-            JSONObject jsonMessage = new JSONObject();
-            jsonMessage.put("role", message.get("role"));
-            jsonMessage.put("content", message.get("content"));
-            messages.put(jsonMessage);
+        // 根据配置决定如何处理人设
+        if (personaAsSystemPrompt) {
+            // 人设作为系统提示词
+            JSONArray messages = new JSONArray();
+            
+            // 添加系统消息
+            JSONObject systemMessage = new JSONObject();
+            systemMessage.put("role", "system");
+            systemMessage.put("content", systemPrompt);
+            messages.put(systemMessage);
+            
+            // 添加对话历史
+            for (Map<String, String> message : conversation) {
+                JSONObject jsonMessage = new JSONObject();
+                jsonMessage.put("role", message.get("role"));
+                jsonMessage.put("content", message.get("content"));
+                messages.put(jsonMessage);
+            }
+        } else {
+            // 人设作为对话历史的一部分
+            JSONArray messages = new JSONArray();
+            
+            // 添加人设作为第一条用户消息
+            JSONObject personaMessage = new JSONObject();
+            personaMessage.put("role", "user");
+            personaMessage.put("content", systemPrompt);
+            messages.put(personaMessage);
+            
+            // 添加对话历史
+            for (Map<String, String> message : conversation) {
+                JSONObject jsonMessage = new JSONObject();
+                jsonMessage.put("role", message.get("role"));
+                jsonMessage.put("content", message.get("content"));
+                messages.put(jsonMessage);
+            }
         }
+        
         requestBody.put("messages", messages);
         
         // 设置温度参数

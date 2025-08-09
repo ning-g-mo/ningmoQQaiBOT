@@ -38,6 +38,13 @@ ai:
   # 默认使用的模型
   default_model: "gemini"
   
+  # 人设配置
+  persona:
+    # 是否将人设作为系统提示词（system prompt）而不是对话历史
+    # true: 人设作为系统提示词（推荐，更稳定）
+    # false: 人设作为对话历史的一部分（可能影响对话连贯性）
+    as_system_prompt: true
+  
   # 群成员信息相关设置
   include_group_members: true   # 是否在AI提示中包含群成员信息，让AI能够艾特群友
   filter_self_at: true          # 是否过滤AI回复中艾特机器人自己的内容

@@ -100,9 +100,10 @@ public class ModelManager {
      * @param modelName 模型名称
      * @param systemPrompt 系统提示词
      * @param conversation 对话历史
+     * @param personaAsSystemPrompt 是否将人设作为系统提示词
      * @return 模型回复的内容
      */
-    public String generateReply(String modelName, String systemPrompt, List<Map<String, String>> conversation) {
+    public String generateReply(String modelName, String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt) {
         long startTime = System.currentTimeMillis();
         
         // 记录请求开始信息
@@ -154,7 +155,7 @@ public class ModelManager {
                 
                 // 调用模型生成回复
                 logger.debug("调用模型 {} 生成回复...", modelName);
-                String result = model.generateReply(systemPrompt, conversation);
+                String result = model.generateReply(systemPrompt, conversation, personaAsSystemPrompt);
                 
                 long attemptDuration = System.currentTimeMillis() - attemptStart;
                 logger.info("模型 {} 响应耗时: {}毫秒", modelName, attemptDuration);
@@ -183,7 +184,7 @@ public class ModelManager {
                             AIModel fallbackModelObj = getModelForName(fallbackModel);
                             if (fallbackModelObj != null) {
                                 // 使用备用模型
-                                return fallbackModelObj.generateReply(systemPrompt, conversation);
+                                return fallbackModelObj.generateReply(systemPrompt, conversation, personaAsSystemPrompt);
                             }
                         }
                     }

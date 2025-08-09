@@ -11,9 +11,10 @@ public interface AIModel {
      * 生成回复
      * @param systemPrompt 系统提示词
      * @param conversation 对话历史
+     * @param personaAsSystemPrompt 是否将人设作为系统提示词
      * @return 模型回复的内容
      */
-    String generateReply(String systemPrompt, List<Map<String, String>> conversation);
+    String generateReply(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt);
     
     /**
      * 获取模型名称

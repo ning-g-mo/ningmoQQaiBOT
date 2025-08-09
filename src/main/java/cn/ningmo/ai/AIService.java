@@ -167,9 +167,12 @@ public class AIService {
             systemPrompt = "你是一个友好、有帮助的AI助手。请用中文回答问题。";
         }
         
+        // 获取人设配置：是否作为系统提示词
+        boolean personaAsSystemPrompt = configLoader.getConfig("ai.persona.as_system_prompt", true);
+        
         // 生成AI回复
         long startTime = System.currentTimeMillis();
-        String aiReply = modelManager.generateReply(modelName, systemPrompt, conversation);
+        String aiReply = modelManager.generateReply(modelName, systemPrompt, conversation, personaAsSystemPrompt);
         long endTime = System.currentTimeMillis();
         logger.debug("AI响应生成耗时: {}ms", (endTime - startTime));
         

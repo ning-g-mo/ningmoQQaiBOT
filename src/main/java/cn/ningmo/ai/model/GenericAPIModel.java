@@ -37,7 +37,7 @@ public class GenericAPIModel implements AIModel {
     }
     
     @Override
-    public String generateReply(String systemPrompt, List<Map<String, String>> conversation) {
+    public String generateReply(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt) {
         try {
             String apiUrl = (String) modelConfig.get("api_url");
             if (apiUrl == null || apiUrl.isEmpty()) {
@@ -58,11 +58,20 @@ public class GenericAPIModel implements AIModel {
             if (requestBody.has("messages")) {
                 JSONArray messages = requestBody.getJSONArray("messages");
                 
-                // 添加系统消息
-                JSONObject systemMessage = new JSONObject();
-                systemMessage.put("role", "system");
-                systemMessage.put("content", systemPrompt);
-                messages.put(systemMessage);
+                // 根据配置决定如何处理人设
+                if (personaAsSystemPrompt) {
+                    // 人设作为系统提示词
+                    JSONObject systemMessage = new JSONObject();
+                    systemMessage.put("role", "system");
+                    systemMessage.put("content", systemPrompt);
+                    messages.put(systemMessage);
+                } else {
+                    // 人设作为对话历史的一部分
+                    JSONObject personaMessage = new JSONObject();
+                    personaMessage.put("role", "user");
+                    personaMessage.put("content", systemPrompt);
+                    messages.put(personaMessage);
+                }
                 
                 // 添加对话历史
                 for (Map<String, String> message : conversation) {
@@ -74,11 +83,20 @@ public class GenericAPIModel implements AIModel {
             } else {
                 JSONArray messages = new JSONArray();
                 
-                // 添加系统消息
-                JSONObject systemMessage = new JSONObject();
-                systemMessage.put("role", "system");
-                systemMessage.put("content", systemPrompt);
-                messages.put(systemMessage);
+                // 根据配置决定如何处理人设
+                if (personaAsSystemPrompt) {
+                    // 人设作为系统提示词
+                    JSONObject systemMessage = new JSONObject();
+                    systemMessage.put("role", "system");
+                    systemMessage.put("content", systemPrompt);
+                    messages.put(systemMessage);
+                } else {
+                    // 人设作为对话历史的一部分
+                    JSONObject personaMessage = new JSONObject();
+                    personaMessage.put("role", "user");
+                    personaMessage.put("content", systemPrompt);
+                    messages.put(personaMessage);
+                }
                 
                 // 添加对话历史
                 for (Map<String, String> message : conversation) {

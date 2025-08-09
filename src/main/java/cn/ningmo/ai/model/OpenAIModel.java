@@ -49,7 +49,7 @@ public class OpenAIModel implements AIModel {
     }
     
     @Override
-    public String generateReply(String systemPrompt, List<Map<String, String>> conversation) {
+    public String generateReply(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt) {
         // 记录开始处理请求的时间
         long startTime = System.currentTimeMillis();
         logger.info("开始生成AI回复，使用模型: {}, 对话长度: {}", modelName, conversation.size());
@@ -64,18 +64,36 @@ public class OpenAIModel implements AIModel {
             // 构建消息数组
             JSONArray messages = new JSONArray();
             
-            // 添加系统消息
-            JSONObject systemMessage = new JSONObject();
-            systemMessage.put("role", "system");
-            systemMessage.put("content", systemPrompt);
-            messages.put(systemMessage);
-            
-            // 添加对话历史
-            for (Map<String, String> message : conversation) {
-                JSONObject jsonMessage = new JSONObject();
-                jsonMessage.put("role", message.get("role"));
-                jsonMessage.put("content", message.get("content"));
-                messages.put(jsonMessage);
+            // 根据配置决定如何处理人设
+            if (personaAsSystemPrompt) {
+                // 人设作为系统提示词
+                JSONObject systemMessage = new JSONObject();
+                systemMessage.put("role", "system");
+                systemMessage.put("content", systemPrompt);
+                messages.put(systemMessage);
+                
+                // 添加对话历史
+                for (Map<String, String> message : conversation) {
+                    JSONObject jsonMessage = new JSONObject();
+                    jsonMessage.put("role", message.get("role"));
+                    jsonMessage.put("content", message.get("content"));
+                    messages.put(jsonMessage);
+                }
+            } else {
+                // 人设作为对话历史的一部分
+                // 添加人设作为第一条用户消息
+                JSONObject personaMessage = new JSONObject();
+                personaMessage.put("role", "user");
+                personaMessage.put("content", systemPrompt);
+                messages.put(personaMessage);
+                
+                // 添加对话历史
+                for (Map<String, String> message : conversation) {
+                    JSONObject jsonMessage = new JSONObject();
+                    jsonMessage.put("role", message.get("role"));
+                    jsonMessage.put("content", message.get("content"));
+                    messages.put(jsonMessage);
+                }
             }
             
             requestBody.put("messages", messages);

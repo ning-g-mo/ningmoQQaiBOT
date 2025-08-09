@@ -36,12 +36,12 @@ public class AnthropicModel implements AIModel {
     }
     
     @Override
-    public String generateReply(String systemPrompt, List<Map<String, String>> conversation) {
+    public String generateReply(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt) {
         try {
             String apiKey = getApiKey();
             String apiBaseUrl = getApiBaseUrl();
             
-            JSONObject requestBody = buildRequestBody(systemPrompt, conversation);
+            JSONObject requestBody = buildRequestBody(systemPrompt, conversation, personaAsSystemPrompt);
             
             String endpoint = apiBaseUrl + "/v1/messages";
             HttpRequest request = HttpRequest.newBuilder()
@@ -66,24 +66,46 @@ public class AnthropicModel implements AIModel {
         }
     }
     
-    private JSONObject buildRequestBody(String systemPrompt, List<Map<String, String>> conversation) {
+    private JSONObject buildRequestBody(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt) {
         JSONObject requestBody = new JSONObject();
         
         // 设置模型名称，例如 "claude-3-opus-20240229"
         requestBody.put("model", name);
         
-        // 设置系统提示
-        requestBody.put("system", systemPrompt);
-        
-        // 构建消息数组
-        JSONArray messages = new JSONArray();
-        for (Map<String, String> message : conversation) {
-            JSONObject jsonMessage = new JSONObject();
-            jsonMessage.put("role", message.get("role"));
-            jsonMessage.put("content", message.get("content"));
-            messages.put(jsonMessage);
+        // 根据配置决定如何处理人设
+        if (personaAsSystemPrompt) {
+            // 人设作为系统提示词
+            requestBody.put("system", systemPrompt);
+            
+            // 构建消息数组
+            JSONArray messages = new JSONArray();
+            for (Map<String, String> message : conversation) {
+                JSONObject jsonMessage = new JSONObject();
+                jsonMessage.put("role", message.get("role"));
+                jsonMessage.put("content", message.get("content"));
+                messages.put(jsonMessage);
+            }
+            requestBody.put("messages", messages);
+        } else {
+            // 人设作为对话历史的一部分
+            // 构建消息数组，将人设作为第一条用户消息
+            JSONArray messages = new JSONArray();
+            
+            // 添加人设作为第一条用户消息
+            JSONObject personaMessage = new JSONObject();
+            personaMessage.put("role", "user");
+            personaMessage.put("content", systemPrompt);
+            messages.put(personaMessage);
+            
+            // 添加对话历史
+            for (Map<String, String> message : conversation) {
+                JSONObject jsonMessage = new JSONObject();
+                jsonMessage.put("role", message.get("role"));
+                jsonMessage.put("content", message.get("content"));
+                messages.put(jsonMessage);
+            }
+            requestBody.put("messages", messages);
         }
-        requestBody.put("messages", messages);
         
         // 设置温度参数
         double temperature = getTemperature();
