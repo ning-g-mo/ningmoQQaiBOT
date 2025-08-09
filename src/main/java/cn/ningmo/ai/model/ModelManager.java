@@ -241,7 +241,7 @@ public class ModelManager {
             AIModel fallbackModelObj = getModelForName(fallbackModel);
             if (fallbackModelObj != null) {
                 try {
-                    return fallbackModelObj.generateReply(systemPrompt, conversation);
+                    return fallbackModelObj.generateReply(systemPrompt, conversation, personaAsSystemPrompt);
                 } catch (Exception e) {
                     logger.error("备用模型 {} 也失败: {}", fallbackModel, e.getMessage(), e);
                 }

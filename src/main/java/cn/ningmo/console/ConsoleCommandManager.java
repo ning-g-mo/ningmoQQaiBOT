@@ -496,7 +496,7 @@ public class ConsoleCommandManager {
                     String systemPrompt = "你是一个测试助手，请用简短的一句话回复。";
                     
                     System.out.println("发送测试请求...");
-                    String reply = modelManager.generateReply(modelName, systemPrompt, conversation);
+                    String reply = modelManager.generateReply(modelName, systemPrompt, conversation, true);
                     long endTime = System.currentTimeMillis();
                     
                     System.out.println("测试结果:");

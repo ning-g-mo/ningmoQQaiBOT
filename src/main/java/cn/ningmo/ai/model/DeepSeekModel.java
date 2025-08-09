@@ -143,13 +143,15 @@ public class DeepSeekModel implements AIModel {
         requestBody.put("model", apiModelName);
         logger.debug("使用DeepSeek模型: {}", apiModelName);
         
+        // 声明变量在外部，避免作用域问题
+        JSONArray messages = new JSONArray();
+        JSONObject systemMessage = null;
+        
         // 根据配置决定如何处理人设
         if (personaAsSystemPrompt) {
             // 人设作为系统提示词
-            JSONArray messages = new JSONArray();
-            
             // 添加系统消息
-            JSONObject systemMessage = new JSONObject();
+            systemMessage = new JSONObject();
             systemMessage.put("role", "system");
             systemMessage.put("content", systemPrompt);
             messages.put(systemMessage);
@@ -163,8 +165,6 @@ public class DeepSeekModel implements AIModel {
             }
         } else {
             // 人设作为对话历史的一部分
-            JSONArray messages = new JSONArray();
-            
             // 添加人设作为第一条用户消息
             JSONObject personaMessage = new JSONObject();
             personaMessage.put("role", "user");
@@ -217,7 +217,7 @@ public class DeepSeekModel implements AIModel {
             }
             
             // 如果是R3模型，添加默认语言设置为中文
-            if (modelName.contains("r3")) {
+            if (modelName.contains("r3") && systemMessage != null) {
                 String language = getModelConfigValue("language", "zh");
                 // 在系统提示中添加语言指令
                 if (!systemPrompt.toLowerCase().contains("use chinese") && 
