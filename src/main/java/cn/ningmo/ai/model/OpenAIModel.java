@@ -266,14 +266,45 @@ public class OpenAIModel implements AIModel {
         
         try {
             // 尝试类型转换
-            if (defaultValue instanceof Number && value instanceof Number) {
+            if (defaultValue instanceof Number) {
                 if (defaultValue instanceof Integer) {
-                    return (T) Integer.valueOf(((Number) value).intValue());
+                    if (value instanceof Number) {
+                        return (T) Integer.valueOf(((Number) value).intValue());
+                    } else if (value instanceof String) {
+                        try {
+                            return (T) Integer.valueOf((String) value);
+                        } catch (NumberFormatException e) {
+                            logger.warn("无法将字符串值转换为整数, key: {}, value: {}", key, value);
+                            return defaultValue;
+                        }
+                    }
                 } else if (defaultValue instanceof Double) {
-                    return (T) Double.valueOf(((Number) value).doubleValue());
+                    if (value instanceof Number) {
+                        return (T) Double.valueOf(((Number) value).doubleValue());
+                    } else if (value instanceof String) {
+                        try {
+                            return (T) Double.valueOf((String) value);
+                        } catch (NumberFormatException e) {
+                            logger.warn("无法将字符串值转换为浮点数, key: {}, value: {}", key, value);
+                            return defaultValue;
+                        }
+                    }
                 }
             }
-            return (T) value;
+            
+            // 如果类型匹配，直接返回
+            if (defaultValue.getClass().isInstance(value)) {
+                return (T) value;
+            }
+            
+            // 尝试字符串转换
+            if (defaultValue instanceof String) {
+                return (T) value.toString();
+            }
+            
+            // 如果都失败了，返回默认值
+            logger.warn("配置值类型转换失败, key: {}, value: {}, 期望类型: {}", key, value, defaultValue.getClass().getSimpleName());
+            return defaultValue;
         } catch (ClassCastException e) {
             logger.warn("配置值类型转换失败, key: {}, value: {}", key, value, e);
             return defaultValue;

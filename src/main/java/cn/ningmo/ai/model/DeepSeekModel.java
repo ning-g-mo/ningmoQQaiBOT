@@ -302,7 +302,49 @@ public class DeepSeekModel implements AIModel {
         if (value == null) return defaultValue;
         
         try {
-            return (T) value;
+            // 尝试类型转换
+            if (defaultValue instanceof Number) {
+                if (defaultValue instanceof Integer) {
+                    if (value instanceof Number) {
+                        return (T) Integer.valueOf(((Number) value).intValue());
+                    } else if (value instanceof String) {
+                        try {
+                            return (T) Integer.valueOf((String) value);
+                        } catch (NumberFormatException e) {
+                            return defaultValue;
+                        }
+                    }
+                } else if (defaultValue instanceof Double) {
+                    if (value instanceof Number) {
+                        return (T) Double.valueOf(((Number) value).doubleValue());
+                    } else if (value instanceof String) {
+                        try {
+                            return (T) Double.valueOf((String) value);
+                        } catch (NumberFormatException e) {
+                            return defaultValue;
+                        }
+                    }
+                } else if (defaultValue instanceof Boolean) {
+                    if (value instanceof Boolean) {
+                        return (T) value;
+                    } else if (value instanceof String) {
+                        return (T) Boolean.valueOf((String) value);
+                    }
+                }
+            }
+            
+            // 如果类型匹配，直接返回
+            if (defaultValue.getClass().isInstance(value)) {
+                return (T) value;
+            }
+            
+            // 尝试字符串转换
+            if (defaultValue instanceof String) {
+                return (T) value.toString();
+            }
+            
+            // 如果都失败了，返回默认值
+            return defaultValue;
         } catch (ClassCastException e) {
             return defaultValue;
         }
