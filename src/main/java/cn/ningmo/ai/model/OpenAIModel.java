@@ -1,5 +1,6 @@
 package cn.ningmo.ai.model;
 
+import cn.ningmo.ai.response.ResponseParser;
 import cn.ningmo.config.ConfigLoader;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.json.JSONArray;
@@ -127,28 +128,13 @@ public class OpenAIModel implements AIModel {
             
             // 处理响应
             if (response.statusCode() == 200) {
-                // 解析响应JSON
-                JSONObject responseJson = new JSONObject(response.body());
+                String content = ResponseParser.parseResponse(response.body(), "OpenAI");
                 
-                // 检查是否有choices字段
-                if (responseJson.has("choices") && responseJson.getJSONArray("choices").length() > 0) {
-                    JSONObject choice = responseJson.getJSONArray("choices").getJSONObject(0);
-                    
-                    // 检查message字段
-                    if (choice.has("message") && choice.getJSONObject("message").has("content")) {
-                        String content = choice.getJSONObject("message").getString("content");
-                        
-                        // 记录成功
-                        long totalTime = System.currentTimeMillis() - startTime;
-                        logger.info("AI回复生成成功，总耗时: {}毫秒，回复长度: {}", totalTime, content.length());
-                        
-                        return content;
-                    }
-                }
+                // 记录成功
+                long totalTime = System.currentTimeMillis() - startTime;
+                logger.info("AI回复生成成功，总耗时: {}毫秒，回复长度: {}", totalTime, content.length());
                 
-                // 如果没有找到内容，记录错误
-                logger.error("无法从API响应中提取内容: {}", response.body());
-                return "API响应格式错误，请联系管理员";
+                return content;
             } else {
                 // 记录不同的错误状态码
                 String errorMessage = "OpenAI API调用失败，状态码: " + response.statusCode();
@@ -290,4 +276,4 @@ public class OpenAIModel implements AIModel {
     public String getType() {
         return "openai";
     }
-} 
+}

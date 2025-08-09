@@ -1,5 +1,6 @@
 package cn.ningmo.ai.model;
 
+import cn.ningmo.ai.response.ResponseParser;
 import cn.ningmo.config.ConfigLoader;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -112,7 +113,9 @@ public class GenericAPIModel implements AIModel {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                return extractContent(response.body());
+                // 如果有自定义解析路径，使用带路径的解析
+                String customPath = (String) modelConfig.get("response_content_path");
+                return ResponseParser.parseResponse(response.body(), "GenericAPI", customPath);
             } else {
                 logger.error("API调用失败: {}, 状态码: {}", response.body(), response.statusCode());
                 return "抱歉，API调用失败，错误代码: " + response.statusCode();
@@ -123,42 +126,7 @@ public class GenericAPIModel implements AIModel {
         }
     }
     
-    private String extractContent(String responseBody) {
-        try {
-            JSONObject response = new JSONObject(responseBody);
-            
-            // 从配置中获取内容提取路径
-            String contentPath = (String) modelConfig.getOrDefault("response_content_path", "choices.0.message.content");
-            
-            // 解析路径并提取内容
-            String[] pathParts = contentPath.split("\\.");
-            Object current = response;
-            
-            for (String part : pathParts) {
-                if (current instanceof JSONObject) {
-                    // 如果是对象，按键获取值
-                    current = ((JSONObject) current).get(part);
-                } else if (current instanceof JSONArray) {
-                    // 如果是数组，按索引获取值
-                    try {
-                        int index = Integer.parseInt(part);
-                        current = ((JSONArray) current).get(index);
-                    } catch (NumberFormatException e) {
-                        logger.error("无法解析数组索引: " + part, e);
-                        return "API响应格式错误，无法提取内容。";
-                    }
-                } else {
-                    logger.error("无法解析响应路径: " + contentPath);
-                    return "API响应格式错误，无法提取内容。";
-                }
-            }
-            
-            return current.toString();
-        } catch (Exception e) {
-            logger.error("提取API响应内容失败", e);
-            return "解析API响应时出错: " + e.getMessage();
-        }
-    }
+
     
     @SuppressWarnings("unchecked")
     private Map<String, Object> getRequestTemplate() {

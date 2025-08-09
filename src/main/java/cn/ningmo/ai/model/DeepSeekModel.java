@@ -1,5 +1,6 @@
 package cn.ningmo.ai.model;
 
+import cn.ningmo.ai.response.ResponseParser;
 import cn.ningmo.config.ConfigLoader;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -65,7 +66,7 @@ public class DeepSeekModel implements AIModel {
             logger.debug("DeepSeek API响应: 状态码={}, 内容={}", response.statusCode(), response.body());
             
             if (response.statusCode() == 200) {
-                return parseResponse(response.body());
+                return ResponseParser.parseResponse(response.body(), "DeepSeek");
             } else {
                 // 更详细地记录错误信息
                 logger.error("DeepSeek API调用失败: {}, 状态码: {}", response.body(), response.statusCode());
@@ -227,16 +228,7 @@ public class DeepSeekModel implements AIModel {
         };
     }
     
-    private String parseResponse(String responseBody) {
-        JSONObject response = new JSONObject(responseBody);
-        if (response.has("choices") && response.getJSONArray("choices").length() > 0) {
-            JSONObject choice = response.getJSONArray("choices").getJSONObject(0);
-            if (choice.has("message") && choice.getJSONObject("message").has("content")) {
-                return choice.getJSONObject("message").getString("content");
-            }
-        }
-        return "DeepSeek API响应格式错误，请联系管理员。";
-    }
+
     
     private String getApiKey() {
         String apiKey = (String) modelConfig.getOrDefault("api_key", "");

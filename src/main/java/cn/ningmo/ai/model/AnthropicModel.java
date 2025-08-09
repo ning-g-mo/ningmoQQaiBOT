@@ -1,5 +1,6 @@
 package cn.ningmo.ai.model;
 
+import cn.ningmo.ai.response.ResponseParser;
 import cn.ningmo.config.ConfigLoader;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -54,7 +55,7 @@ public class AnthropicModel implements AIModel {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             
             if (response.statusCode() == 200) {
-                return parseResponse(response.body());
+                return ResponseParser.parseResponse(response.body(), "Anthropic");
             } else {
                 logger.error("Claude API调用失败: {}, 状态码: {}", response.body(), response.statusCode());
                 return "抱歉，AI响应出错，请稍后再试。错误代码: " + response.statusCode();
@@ -95,16 +96,7 @@ public class AnthropicModel implements AIModel {
         return requestBody;
     }
     
-    private String parseResponse(String responseBody) {
-        JSONObject response = new JSONObject(responseBody);
-        if (response.has("content") && response.getJSONArray("content").length() > 0) {
-            JSONObject content = response.getJSONArray("content").getJSONObject(0);
-            if (content.has("text")) {
-                return content.getString("text");
-            }
-        }
-        return "AI响应格式错误，请联系管理员。";
-    }
+
     
     private String getApiKey() {
         String apiKey = (String) modelConfig.getOrDefault("api_key", "");

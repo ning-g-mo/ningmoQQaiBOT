@@ -1,5 +1,6 @@
 package cn.ningmo.ai.model;
 
+import cn.ningmo.ai.response.ResponseParser;
 import cn.ningmo.config.ConfigLoader;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -49,7 +50,7 @@ public class LocalLLMModel implements AIModel {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             
             if (response.statusCode() == 200) {
-                return parseResponse(response.body());
+                return ResponseParser.parseResponse(response.body(), "LocalLLM");
             } else {
                 logger.error("本地模型API调用失败: {}, 状态码: {}", response.body(), response.statusCode());
                 return "抱歉，本地AI模型响应出错，请检查服务是否正常运行。错误代码: " + response.statusCode();
@@ -96,29 +97,7 @@ public class LocalLLMModel implements AIModel {
         return requestBody;
     }
     
-    private String parseResponse(String responseBody) {
-        try {
-            JSONObject response = new JSONObject(responseBody);
-            
-            // OpenAI兼容格式
-            if (response.has("choices") && response.getJSONArray("choices").length() > 0) {
-                JSONObject choice = response.getJSONArray("choices").getJSONObject(0);
-                if (choice.has("message") && choice.getJSONObject("message").has("content")) {
-                    return choice.getJSONObject("message").getString("content");
-                }
-            }
-            
-            // Ollama格式
-            if (response.has("response")) {
-                return response.getString("response");
-            }
-            
-            return "本地AI响应格式不支持，请检查配置。";
-        } catch (Exception e) {
-            logger.error("解析本地模型响应失败", e);
-            return "解析AI响应时出错: " + e.getMessage();
-        }
-    }
+
     
     private String getApiEndpoint() {
         String endpoint = (String) modelConfig.getOrDefault("api_endpoint", "");
