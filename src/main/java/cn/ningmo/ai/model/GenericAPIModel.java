@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 
 public class GenericAPIModel implements AIModel {
     private static final Logger logger = LoggerFactory.getLogger(GenericAPIModel.class);
@@ -38,6 +39,11 @@ public class GenericAPIModel implements AIModel {
     
     @Override
     public String generateReply(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt) {
+        return generateReply(systemPrompt, conversation, personaAsSystemPrompt, new ArrayList<>());
+    }
+
+    @Override
+    public String generateReply(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt, List<String> imageBase64List) {
         try {
             String apiUrl = (String) modelConfig.get("api_url");
             if (apiUrl == null || apiUrl.isEmpty()) {

@@ -534,9 +534,9 @@ public class MessageHandler {
                 
                 // 检查消息是否包含图片
                 List<String> imageBase64List = new ArrayList<>();
-                if (CommonUtils.containsImage(rawMessage)) {
+                if (CommonUtils.containsImage(content)) {
                     logger.info("检测到消息包含图片，开始处理图片...");
-                    List<String> imageCQCodes = CommonUtils.extractImageCQCodes(rawMessage);
+                    List<String> imageCQCodes = CommonUtils.extractImageCQCodes(content);
                     
                     for (String imageCQCode : imageCQCodes) {
                         String imageUrl = CommonUtils.extractImageUrlFromCQCode(imageCQCode);

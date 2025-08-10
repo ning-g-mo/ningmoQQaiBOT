@@ -15,6 +15,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 
 public class LocalLLMModel implements AIModel {
     private static final Logger logger = LoggerFactory.getLogger(LocalLLMModel.class);
@@ -37,9 +38,14 @@ public class LocalLLMModel implements AIModel {
     
     @Override
     public String generateReply(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt) {
+        return generateReply(systemPrompt, conversation, personaAsSystemPrompt, new ArrayList<>());
+    }
+
+    @Override
+    public String generateReply(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt, List<String> imageBase64List) {
         try {
             String endpoint = getApiEndpoint();
-            JSONObject requestBody = buildRequestBody(systemPrompt, conversation, personaAsSystemPrompt);
+            JSONObject requestBody = buildRequestBody(systemPrompt, conversation, personaAsSystemPrompt, imageBase64List);
             
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint))
@@ -61,7 +67,7 @@ public class LocalLLMModel implements AIModel {
         }
     }
     
-    private JSONObject buildRequestBody(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt) {
+    private JSONObject buildRequestBody(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt, List<String> imageBase64List) {
         JSONObject requestBody = new JSONObject();
         
         // 大多数本地LLM服务器都支持OpenAI兼容的API格式

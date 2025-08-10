@@ -15,6 +15,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 
 public class AnthropicModel implements AIModel {
     private static final Logger logger = LoggerFactory.getLogger(AnthropicModel.class);
@@ -37,11 +38,16 @@ public class AnthropicModel implements AIModel {
     
     @Override
     public String generateReply(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt) {
+        return generateReply(systemPrompt, conversation, personaAsSystemPrompt, new ArrayList<>());
+    }
+
+    @Override
+    public String generateReply(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt, List<String> imageBase64List) {
         try {
             String apiKey = getApiKey();
             String apiBaseUrl = getApiBaseUrl();
             
-            JSONObject requestBody = buildRequestBody(systemPrompt, conversation, personaAsSystemPrompt);
+            JSONObject requestBody = buildRequestBody(systemPrompt, conversation, personaAsSystemPrompt, imageBase64List);
             
             String endpoint = apiBaseUrl + "/v1/messages";
             HttpRequest request = HttpRequest.newBuilder()
@@ -66,7 +72,7 @@ public class AnthropicModel implements AIModel {
         }
     }
     
-    private JSONObject buildRequestBody(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt) {
+    private JSONObject buildRequestBody(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt, List<String> imageBase64List) {
         JSONObject requestBody = new JSONObject();
         
         // 设置模型名称，例如 "claude-3-opus-20240229"

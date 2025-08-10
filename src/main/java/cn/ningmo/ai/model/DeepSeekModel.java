@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 
 public class DeepSeekModel implements AIModel {
     private static final Logger logger = LoggerFactory.getLogger(DeepSeekModel.class);
@@ -38,6 +39,11 @@ public class DeepSeekModel implements AIModel {
     
     @Override
     public String generateReply(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt) {
+        return generateReply(systemPrompt, conversation, personaAsSystemPrompt, new ArrayList<>());
+    }
+
+    @Override
+    public String generateReply(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt, List<String> imageBase64List) {
         try {
             String apiKey = getApiKey();
             String apiBaseUrl = getApiBaseUrl();
@@ -47,7 +53,7 @@ public class DeepSeekModel implements AIModel {
                 return "DeepSeek AI服务暂时不可用，请联系管理员配置API密钥。";
             }
             
-            JSONObject requestBody = buildRequestBody(systemPrompt, conversation, personaAsSystemPrompt);
+            JSONObject requestBody = buildRequestBody(systemPrompt, conversation, personaAsSystemPrompt, imageBase64List);
             String requestJson = requestBody.toString(2); // 格式化的JSON
             logger.debug("DeepSeek API请求体: {}", requestJson);
             
@@ -133,7 +139,7 @@ public class DeepSeekModel implements AIModel {
         }
     }
     
-    private JSONObject buildRequestBody(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt) {
+    private JSONObject buildRequestBody(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt, List<String> imageBase64List) {
         JSONObject requestBody = new JSONObject();
         
         // 设置模型名称 - 修复模型名称映射

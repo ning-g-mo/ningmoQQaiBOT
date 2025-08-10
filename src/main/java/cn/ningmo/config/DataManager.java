@@ -332,7 +332,7 @@ public class DataManager {
             return privateMessageEnabled;
         }
         // 否则使用配置文件中的默认值
-        return configLoader.getConfigBoolean("bot.enable_private_message", false);
+        return configLoader.getConfig("bot.enable_private_message", false);
     }
     
     public void setPrivateMessageEnabled(boolean enabled) {
