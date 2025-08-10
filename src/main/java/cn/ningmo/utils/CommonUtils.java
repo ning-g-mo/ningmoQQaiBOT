@@ -4,14 +4,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
+import java.util.Base64;
 import java.util.Date;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.List;
+import java.util.ArrayList;
 
 import org.json.JSONObject;
 
@@ -155,5 +160,72 @@ public class CommonUtils {
      */
     public static boolean isEmpty(String str) {
         return str == null || str.trim().isEmpty();
+    }
+    
+    /**
+     * 从消息中提取图片CQ码
+     * @param message 原始消息
+     * @return 图片CQ码列表
+     */
+    public static List<String> extractImageCQCodes(String message) {
+        List<String> imageCodes = new ArrayList<>();
+        Pattern pattern = Pattern.compile("\\[CQ:image[^\\]]*\\]");
+        Matcher matcher = pattern.matcher(message);
+        
+        while (matcher.find()) {
+            imageCodes.add(matcher.group());
+        }
+        
+        return imageCodes;
+    }
+    
+    /**
+     * 从图片CQ码中提取图片URL
+     * @param imageCQCode 图片CQ码
+     * @return 图片URL，如果提取失败返回null
+     */
+    public static String extractImageUrlFromCQCode(String imageCQCode) {
+        // 匹配 file= 参数
+        Pattern filePattern = Pattern.compile("file=([^,\\]]+)");
+        Matcher fileMatcher = filePattern.matcher(imageCQCode);
+        if (fileMatcher.find()) {
+            return fileMatcher.group(1);
+        }
+        
+        // 匹配 url= 参数
+        Pattern urlPattern = Pattern.compile("url=([^,\\]]+)");
+        Matcher urlMatcher = urlPattern.matcher(imageCQCode);
+        if (urlMatcher.find()) {
+            return urlMatcher.group(1);
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 下载图片并转换为base64编码
+     * @param imageUrl 图片URL
+     * @return base64编码的图片数据，如果失败返回null
+     */
+    public static String downloadImageAsBase64(String imageUrl) {
+        try {
+            URL url = new URL(imageUrl);
+            try (InputStream inputStream = url.openStream()) {
+                byte[] imageBytes = inputStream.readAllBytes();
+                return Base64.getEncoder().encodeToString(imageBytes);
+            }
+        } catch (Exception e) {
+            logger.error("下载图片失败: {}", imageUrl, e);
+            return null;
+        }
+    }
+    
+    /**
+     * 检测消息是否包含图片
+     * @param message 消息内容
+     * @return 是否包含图片
+     */
+    public static boolean containsImage(String message) {
+        return message.contains("[CQ:image");
     }
 } 

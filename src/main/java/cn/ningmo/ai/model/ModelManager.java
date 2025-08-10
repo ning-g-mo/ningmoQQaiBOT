@@ -104,6 +104,19 @@ public class ModelManager {
      * @return 模型回复的内容
      */
     public String generateReply(String modelName, String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt) {
+        return generateReply(modelName, systemPrompt, conversation, personaAsSystemPrompt, new ArrayList<>());
+    }
+    
+    /**
+     * 生成回复（支持图片）
+     * @param modelName 模型名称
+     * @param systemPrompt 系统提示词
+     * @param conversation 对话历史
+     * @param personaAsSystemPrompt 是否将人设作为系统提示词
+     * @param imageBase64List 图片base64编码列表
+     * @return 模型回复的内容
+     */
+    public String generateReply(String modelName, String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt, List<String> imageBase64List) {
         long startTime = System.currentTimeMillis();
         
         // 记录请求开始信息
@@ -155,7 +168,7 @@ public class ModelManager {
                 
                 // 调用模型生成回复
                 logger.debug("调用模型 {} 生成回复...", modelName);
-                String result = model.generateReply(systemPrompt, conversation, personaAsSystemPrompt);
+                String result = model.generateReply(systemPrompt, conversation, personaAsSystemPrompt, imageBase64List);
                 
                 long attemptDuration = System.currentTimeMillis() - attemptStart;
                 logger.info("模型 {} 响应耗时: {}毫秒", modelName, attemptDuration);
@@ -182,10 +195,10 @@ public class ModelManager {
                         if (fallbackModel != null && !fallbackModel.equals(modelName)) {
                             logger.info("切换到备用模型 {}", fallbackModel);
                             AIModel fallbackModelObj = getModelForName(fallbackModel);
-                            if (fallbackModelObj != null) {
-                                // 使用备用模型
-                                return fallbackModelObj.generateReply(systemPrompt, conversation, personaAsSystemPrompt);
-                            }
+                                                    if (fallbackModelObj != null) {
+                            // 使用备用模型
+                            return fallbackModelObj.generateReply(systemPrompt, conversation, personaAsSystemPrompt, imageBase64List);
+                        }
                         }
                     }
                     

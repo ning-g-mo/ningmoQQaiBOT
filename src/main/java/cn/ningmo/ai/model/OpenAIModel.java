@@ -16,6 +16,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 
 public class OpenAIModel implements AIModel {
     private static final Logger logger = LoggerFactory.getLogger(OpenAIModel.class);
@@ -50,9 +51,21 @@ public class OpenAIModel implements AIModel {
     
     @Override
     public String generateReply(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt) {
+        return generateReply(systemPrompt, conversation, personaAsSystemPrompt, new ArrayList<>());
+    }
+    
+    /**
+     * 生成回复（支持图片）
+     * @param systemPrompt 系统提示词
+     * @param conversation 对话历史
+     * @param personaAsSystemPrompt 是否将人设作为系统提示词
+     * @param imageBase64List 图片base64编码列表
+     * @return AI回复
+     */
+    public String generateReply(String systemPrompt, List<Map<String, String>> conversation, boolean personaAsSystemPrompt, List<String> imageBase64List) {
         // 记录开始处理请求的时间
         long startTime = System.currentTimeMillis();
-        logger.info("开始生成AI回复，使用模型: {}, 对话长度: {}", modelName, conversation.size());
+        logger.info("开始生成AI回复，使用模型: {}, 对话长度: {}, 图片数量: {}", modelName, conversation.size(), imageBase64List.size());
         
         try {
             // 构建请求体
@@ -76,7 +89,38 @@ public class OpenAIModel implements AIModel {
                 for (Map<String, String> message : conversation) {
                     JSONObject jsonMessage = new JSONObject();
                     jsonMessage.put("role", message.get("role"));
-                    jsonMessage.put("content", message.get("content"));
+                    
+                    // 检查是否是最后一条用户消息且包含图片
+                    boolean isLastUserMessage = message.get("role").equals("user") && 
+                                              conversation.indexOf(message) == conversation.size() - 1;
+                    
+                    if (isLastUserMessage && !imageBase64List.isEmpty()) {
+                        // 构建包含图片的内容
+                        JSONArray contentArray = new JSONArray();
+                        
+                        // 添加文本内容
+                        JSONObject textContent = new JSONObject();
+                        textContent.put("type", "text");
+                        textContent.put("text", message.get("content"));
+                        contentArray.put(textContent);
+                        
+                        // 添加图片内容
+                        for (String imageBase64 : imageBase64List) {
+                            JSONObject imageContent = new JSONObject();
+                            imageContent.put("type", "image_url");
+                            
+                            JSONObject imageUrl = new JSONObject();
+                            imageUrl.put("url", "data:image/jpeg;base64," + imageBase64);
+                            imageContent.put("image_url", imageUrl);
+                            
+                            contentArray.put(imageContent);
+                        }
+                        
+                        jsonMessage.put("content", contentArray);
+                    } else {
+                        jsonMessage.put("content", message.get("content"));
+                    }
+                    
                     messages.put(jsonMessage);
                 }
             } else {
@@ -91,7 +135,38 @@ public class OpenAIModel implements AIModel {
                 for (Map<String, String> message : conversation) {
                     JSONObject jsonMessage = new JSONObject();
                     jsonMessage.put("role", message.get("role"));
-                    jsonMessage.put("content", message.get("content"));
+                    
+                    // 检查是否是最后一条用户消息且包含图片
+                    boolean isLastUserMessage = message.get("role").equals("user") && 
+                                              conversation.indexOf(message) == conversation.size() - 1;
+                    
+                    if (isLastUserMessage && !imageBase64List.isEmpty()) {
+                        // 构建包含图片的内容
+                        JSONArray contentArray = new JSONArray();
+                        
+                        // 添加文本内容
+                        JSONObject textContent = new JSONObject();
+                        textContent.put("type", "text");
+                        textContent.put("text", message.get("content"));
+                        contentArray.put(textContent);
+                        
+                        // 添加图片内容
+                        for (String imageBase64 : imageBase64List) {
+                            JSONObject imageContent = new JSONObject();
+                            imageContent.put("type", "image_url");
+                            
+                            JSONObject imageUrl = new JSONObject();
+                            imageUrl.put("url", "data:image/jpeg;base64," + imageBase64);
+                            imageContent.put("image_url", imageUrl);
+                            
+                            contentArray.put(imageContent);
+                        }
+                        
+                        jsonMessage.put("content", contentArray);
+                    } else {
+                        jsonMessage.put("content", message.get("content"));
+                    }
+                    
                     messages.put(jsonMessage);
                 }
             }
@@ -204,7 +279,13 @@ public class OpenAIModel implements AIModel {
      */
     private String mapToApiModelName() {
         // 从模型配置中获取API模型名称，如果没有配置则使用内部模型名
-        String apiModelName = getModelConfigValue("api_model_name", "");
+        String apiModelName = getModelConfigValue("model_name", "");
+        if (!apiModelName.isEmpty()) {
+            return apiModelName;
+        }
+        
+        // 尝试从api_model_name获取（向后兼容）
+        apiModelName = getModelConfigValue("api_model_name", "");
         if (!apiModelName.isEmpty()) {
             return apiModelName;
         }

@@ -27,6 +27,9 @@ public class DataManager {
     // 用户数据: userId -> 用户信息
     private Map<String, Map<String, Object>> userData;
     
+    // 全局私聊功能开关
+    private Boolean privateMessageEnabled;
+    
     private final ConfigLoader configLoader;
     
     public DataManager(ConfigLoader configLoader) {
@@ -34,6 +37,7 @@ public class DataManager {
         this.data = new ConcurrentHashMap<>();
         this.groupAIEnabled = new ConcurrentHashMap<>();
         this.userData = new ConcurrentHashMap<>();
+        this.privateMessageEnabled = null; // 初始化为null，表示使用配置文件中的默认值
     }
     
     @SuppressWarnings("unchecked")
@@ -89,6 +93,13 @@ public class DataManager {
                     Map<String, Object> groupData = (Map<String, Object>) entry.getValue();
                     groupAIEnabled.put(entry.getKey(), (Boolean) groupData.getOrDefault("ai_enabled", false));
                 }
+            }
+            
+            // 加载私聊功能设置
+            Object privateMessageEnabledObj = data.get("private_message_enabled");
+            if (privateMessageEnabledObj instanceof Boolean) {
+                this.privateMessageEnabled = (Boolean) privateMessageEnabledObj;
+                logger.info("从数据文件加载私聊功能状态: {}", this.privateMessageEnabled ? "启用" : "禁用");
             }
             
             logger.info("数据文件加载成功");
@@ -312,5 +323,26 @@ public class DataManager {
     public String getUserPersona(String userId) {
         Map<String, Object> user = getUserData(userId);
         return (String) user.getOrDefault("persona", "default");
+    }
+    
+    // 私聊功能管理方法
+    public boolean isPrivateMessageEnabled() {
+        // 如果动态设置过，使用动态设置的值
+        if (privateMessageEnabled != null) {
+            return privateMessageEnabled;
+        }
+        // 否则使用配置文件中的默认值
+        return configLoader.getConfigBoolean("bot.enable_private_message", false);
+    }
+    
+    public void setPrivateMessageEnabled(boolean enabled) {
+        logger.info("设置全局私聊功能状态为: {}", enabled ? "启用" : "禁用");
+        this.privateMessageEnabled = enabled;
+        
+        // 将设置保存到数据文件中
+        data.put("private_message_enabled", enabled);
+        saveData();
+        
+        logger.info("成功更新全局私聊功能状态为: {}", enabled ? "启用" : "禁用");
     }
 } 

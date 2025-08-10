@@ -80,6 +80,17 @@ public class AIService {
      * @return AI回复
      */
     public String chat(String userId, String message) {
+        return chat(userId, message, new ArrayList<>());
+    }
+    
+    /**
+     * 处理AI聊天请求（支持图片）
+     * @param userId 用户ID
+     * @param message 消息内容
+     * @param imageBase64List 图片base64编码列表
+     * @return AI回复
+     */
+    public String chat(String userId, String message, List<String> imageBase64List) {
         // 频率限制检查
         if (!checkRequestLimit(userId)) {
             logger.debug("用户{}请求过于频繁", userId);
@@ -109,7 +120,7 @@ public class AIService {
                 String persona = dataManager.getUserPersona(userId);
                 
                 // 获取AI回复
-                return generateAIReply(userId, message, modelName, persona);
+                return generateAIReply(userId, message, modelName, persona, imageBase64List);
             } catch (Exception e) {
                 logger.error("生成AI回复时出错", e);
                 return "AI服务暂时出现问题，请稍后再试。错误：" + e.getMessage();
@@ -152,6 +163,13 @@ public class AIService {
      * 生成AI回复
      */
     private String generateAIReply(String userId, String message, String modelName, String persona) {
+        return generateAIReply(userId, message, modelName, persona, new ArrayList<>());
+    }
+    
+    /**
+     * 生成AI回复（支持图片）
+     */
+    private String generateAIReply(String userId, String message, String modelName, String persona, List<String> imageBase64List) {
         // 获取对话历史
         List<Map<String, String>> conversation = getOrCreateConversation(userId);
         
@@ -172,7 +190,7 @@ public class AIService {
         
         // 生成AI回复
         long startTime = System.currentTimeMillis();
-        String aiReply = modelManager.generateReply(modelName, systemPrompt, conversation, personaAsSystemPrompt);
+        String aiReply = modelManager.generateReply(modelName, systemPrompt, conversation, personaAsSystemPrompt, imageBase64List);
         long endTime = System.currentTimeMillis();
         logger.debug("AI响应生成耗时: {}ms", (endTime - startTime));
         

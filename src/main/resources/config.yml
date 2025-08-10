@@ -116,6 +116,14 @@ ai:
       # 可以为每个模型指定不同的API地址
       api_base_url: "https://your-custom-endpoint.com"
     
+    gpt-4-vision:
+      type: "openai"
+      description: "OpenAI GPT-4 Vision模型（支持图片识别）"
+      model_name: "gpt-4-vision-preview"
+      # 可以为每个模型指定不同的API地址
+      api_base_url: "https://your-custom-endpoint.com"
+      max_tokens: 4000
+    
     claude-3-opus:
       type: "anthropic"
       description: "Claude 3 Opus - Anthropic最强大的模型"

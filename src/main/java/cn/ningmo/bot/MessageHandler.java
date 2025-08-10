@@ -532,9 +532,35 @@ public class MessageHandler {
                 // 记录模型调用前的时间
                 long beforeModelCall = System.currentTimeMillis();
                 
+                // 检查消息是否包含图片
+                List<String> imageBase64List = new ArrayList<>();
+                if (CommonUtils.containsImage(rawMessage)) {
+                    logger.info("检测到消息包含图片，开始处理图片...");
+                    List<String> imageCQCodes = CommonUtils.extractImageCQCodes(rawMessage);
+                    
+                    for (String imageCQCode : imageCQCodes) {
+                        String imageUrl = CommonUtils.extractImageUrlFromCQCode(imageCQCode);
+                        if (imageUrl != null) {
+                            String imageBase64 = CommonUtils.downloadImageAsBase64(imageUrl);
+                            if (imageBase64 != null) {
+                                imageBase64List.add(imageBase64);
+                                logger.info("成功下载并编码图片: {}", imageUrl);
+                            } else {
+                                logger.warn("下载图片失败: {}", imageUrl);
+                            }
+                        } else {
+                            logger.warn("无法从CQ码中提取图片URL: {}", imageCQCode);
+                        }
+                    }
+                    
+                    if (!imageBase64List.isEmpty()) {
+                        logger.info("成功处理 {} 张图片", imageBase64List.size());
+                    }
+                }
+                
                 // 调用AI服务
-                logger.info("===> 准备调用AI模型: {}", modelName);
-                String aiReply = aiService.chat(userId, messageWithContext);
+                logger.info("===> 准备调用AI模型: {}, 图片数量: {}", modelName, imageBase64List.size());
+                String aiReply = aiService.chat(userId, messageWithContext, imageBase64List);
                 logger.info("<=== AI模型已返回结果，处理时间: {}毫秒", System.currentTimeMillis() - beforeModelCall);
                 
                 // 标记请求已完成，阻止超时消息发送
@@ -690,8 +716,34 @@ public class MessageHandler {
                 String modelName = dataManager.getUserModel(userId);
                 String persona = dataManager.getUserPersona(userId);
                 
+                // 检查消息是否包含图片
+                List<String> imageBase64List = new ArrayList<>();
+                if (CommonUtils.containsImage(content)) {
+                    logger.info("检测到私聊消息包含图片，开始处理图片...");
+                    List<String> imageCQCodes = CommonUtils.extractImageCQCodes(content);
+                    
+                    for (String imageCQCode : imageCQCodes) {
+                        String imageUrl = CommonUtils.extractImageUrlFromCQCode(imageCQCode);
+                        if (imageUrl != null) {
+                            String imageBase64 = CommonUtils.downloadImageAsBase64(imageUrl);
+                            if (imageBase64 != null) {
+                                imageBase64List.add(imageBase64);
+                                logger.info("成功下载并编码私聊图片: {}", imageUrl);
+                            } else {
+                                logger.warn("下载私聊图片失败: {}", imageUrl);
+                            }
+                        } else {
+                            logger.warn("无法从私聊CQ码中提取图片URL: {}", imageCQCode);
+                        }
+                    }
+                    
+                    if (!imageBase64List.isEmpty()) {
+                        logger.info("成功处理 {} 张私聊图片", imageBase64List.size());
+                    }
+                }
+                
                 // 调用AI服务
-                String aiReply = aiService.chat(userId, content);
+                String aiReply = aiService.chat(userId, content, imageBase64List);
                 
                 // 标记请求已完成，阻止超时消息发送
                 completedRequests.put(requestId, true);
@@ -809,6 +861,18 @@ public class MessageHandler {
             
             // 群聊命令处理
             if (rawMessage.startsWith("/")) {
+                // 检查AI功能是否开启，如果关闭且用户不是超级管理员，则不处理命令
+                boolean aiEnabled = dataManager.isGroupAIEnabled(groupId);
+                if (!aiEnabled) {
+                    List<String> admins = getAdmins();
+                    boolean isAdmin = admins.contains(userId);
+                    if (!isAdmin) {
+                        // AI功能关闭且用户不是超级管理员，不处理命令，直接跳过
+                        logger.debug("群 {} 中AI功能已关闭，用户 {} 不是超级管理员，忽略命令: {}", groupId, userId, rawMessage);
+                        return;
+                    }
+                }
+                
                 logger.debug("群 {} 中收到命令消息: {}", groupId, rawMessage);
                 handleGroupCommand(groupId, userId, rawMessage);
                 return; // 直接返回，确保命令处理后不再进行后续处理
@@ -1075,22 +1139,8 @@ public class MessageHandler {
                 return;
             }
             
-            // 如果AI已关闭，只允许超级管理员执行开启命令和帮助命令
-            if (!aiEnabled) {
-                // 允许的命令：帮助、开启（仅超级管理员）
-                if (cmdLower.equals("开启")) {
-                    // 开启命令只允许超级管理员执行
-                    if (!isAdmin) {
-                        botClient.sendGroupMessage(groupId, "本群AI功能已关闭，只有超级管理员可以开启。");
-                        return;
-                    }
-                    // 超级管理员可以继续执行开启命令
-                } else {
-                    // 其他所有命令都被拒绝
-                    botClient.sendGroupMessage(groupId, "本群AI功能已关闭，请联系超级管理员开启。");
-                    return;
-                }
-            }
+            // 注意：AI关闭时的权限检查已在handleGroupMessage中完成
+            // 这里只需要处理AI开启时的权限检查
             
             // 管理员命令检查
             boolean needAdmin = false;
@@ -1449,6 +1499,31 @@ public class MessageHandler {
             return;
         }
         
+        // 私聊开关命令 (仅超级管理员)
+        if (cmdLower.equals("开启私聊")) {
+            if (!isAdmin) {
+                botClient.sendPrivateMessage(userId, "您没有管理员权限，无法使用此命令。");
+                return;
+            }
+            
+            dataManager.setPrivateMessageEnabled(true);
+            botClient.sendPrivateMessage(userId, "已全局开启私聊功能");
+            logger.info("超级管理员 {} 全局开启了私聊功能", userId);
+            return;
+        }
+        
+        if (cmdLower.equals("关闭私聊")) {
+            if (!isAdmin) {
+                botClient.sendPrivateMessage(userId, "您没有管理员权限，无法使用此命令。");
+                return;
+            }
+            
+            dataManager.setPrivateMessageEnabled(false);
+            botClient.sendPrivateMessage(userId, "已全局关闭私聊功能");
+            logger.info("超级管理员 {} 全局关闭了私聊功能", userId);
+            return;
+        }
+        
         // 处理其他命令
         if (command.startsWith("使用") || command.startsWith("切换")) {
             String param = command.substring(command.startsWith("使用") ? 2 : 2).trim();
@@ -1539,6 +1614,7 @@ public class MessageHandler {
         } else if (cmdLower.equals("状态") || cmdLower.equals("查看状态")) {
             // 显示当前状态
             StringBuilder status = new StringBuilder("当前状态：\n");
+            status.append("全局私聊功能: ").append(dataManager.isPrivateMessageEnabled() ? "已启用" : "已禁用").append("\n");
             status.append("您当前使用的模型: ").append(dataManager.getUserModel(userId)).append("\n");
             status.append("您当前使用的人设: ").append(dataManager.getUserPersona(userId)).append("\n");
             status.append(aiService.getConversationSummary(userId));
@@ -1605,6 +1681,8 @@ public class MessageHandler {
         List<String> admins = getAdmins();
         if (admins.contains(userId)) {
             helpMessage.append("\n👨‍💼 管理员命令：\n");
+            helpMessage.append("  /开启私聊 - 全局开启私聊功能\n");
+            helpMessage.append("  /关闭私聊 - 全局关闭私聊功能\n");
             helpMessage.append("  /添加屏蔽词 [词语] - 添加屏蔽词\n");
             helpMessage.append("  /删除屏蔽词 [词语] - 删除屏蔽词\n");
             helpMessage.append("  /查看屏蔽词 - 显示所有屏蔽词\n");

@@ -292,7 +292,7 @@ public class OneBotClient extends WebSocketClient {
      * 检查私聊功能是否启用
      */
     public boolean isPrivateMessageEnabled() {
-        return configLoader.getConfigBoolean("bot.enable_private_message");
+        return dataManager.isPrivateMessageEnabled();
     }
     
     /**
