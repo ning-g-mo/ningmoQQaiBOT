@@ -1,0 +1,24 @@
+2025-08-11 12:20:54.578 [main] INFO  cn.ningmo.config.ConfigLoader - 创建默认配置文件
+2025-08-11 12:20:54.583 [main] INFO  cn.ningmo.config.ConfigLoader - 默认配置文件创建成功
+2025-08-11 12:20:54.936 [main] INFO  cn.ningmo.config.ConfigLoader - 配置文件加载成功
+2025-08-11 12:20:54.937 [main] INFO  cn.ningmo.config.ConfigLoader - 已设置日志级别：INFO
+2025-08-11 12:20:54.942 [main] INFO  cn.ningmo.utils.ImageProcessor - 图片处理器初始化完成: enabled=true, maxSize=10MB, timeout=30s
+2025-08-11 12:20:55.116 [main] INFO  cn.ningmo.config.ConfigLoader - 配置文件加载成功
+2025-08-11 12:20:55.117 [main] INFO  cn.ningmo.config.ConfigLoader - 已设置日志级别：INFO
+2025-08-11 12:20:55.117 [main] INFO  cn.ningmo.utils.ImageProcessor - 图片处理器初始化完成: enabled=true, maxSize=10MB, timeout=30s
+2025-08-11 12:20:55.151 [main] INFO  cn.ningmo.config.ConfigLoader - 配置文件加载成功
+2025-08-11 12:20:55.152 [main] INFO  cn.ningmo.config.ConfigLoader - 已设置日志级别：INFO
+2025-08-11 12:20:55.153 [main] INFO  cn.ningmo.utils.ImageProcessor - 图片处理器初始化完成: enabled=true, maxSize=10MB, timeout=30s
+2025-08-11 12:20:55.160 [main] INFO  cn.ningmo.utils.ImageProcessor - 开始处理消息中的图片...
+2025-08-11 12:20:55.160 [main] INFO  cn.ningmo.utils.ImageProcessor - 提取到 1 个图片CQ码
+2025-08-11 12:20:55.161 [main] WARN  cn.ningmo.utils.ImageProcessor - 无法从CQ码中提取图片URL: [CQ:image]
+2025-08-11 12:20:55.161 [main] INFO  cn.ningmo.utils.ImageProcessor - 图片处理完成: 成功 0/1, 准备发送给AI模型
+2025-08-11 12:20:55.182 [main] INFO  cn.ningmo.config.ConfigLoader - 配置文件加载成功
+2025-08-11 12:20:55.183 [main] INFO  cn.ningmo.config.ConfigLoader - 已设置日志级别：INFO
+2025-08-11 12:20:55.184 [main] INFO  cn.ningmo.utils.ImageProcessor - 图片处理器初始化完成: enabled=true, maxSize=10MB, timeout=30s
+2025-08-11 12:20:55.262 [main] INFO  cn.ningmo.config.ConfigLoader - 配置文件加载成功
+2025-08-11 12:20:55.263 [main] INFO  cn.ningmo.config.ConfigLoader - 已设置日志级别：INFO
+2025-08-11 12:20:55.265 [main] INFO  cn.ningmo.utils.ImageProcessor - 图片处理器初始化完成: enabled=true, maxSize=10MB, timeout=30s
+2025-08-11 12:20:55.309 [main] INFO  cn.ningmo.config.ConfigLoader - 配置文件加载成功
+2025-08-11 12:20:55.310 [main] INFO  cn.ningmo.config.ConfigLoader - 已设置日志级别：INFO
+2025-08-11 12:20:55.311 [main] INFO  cn.ningmo.utils.ImageProcessor - 图片处理器初始化完成: enabled=true, maxSize=10MB, timeout=30s

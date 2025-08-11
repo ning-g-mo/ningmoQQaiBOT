@@ -64,11 +64,13 @@ public class ImageProcessor {
         
         logger.info("提取到 {} 个图片CQ码", imageCQCodes.size());
         int successCount = 0;
+        int invalidCQCount = 0;
         
         for (String imageCQCode : imageCQCodes) {
             String imageUrl = CommonUtils.extractImageUrlFromCQCode(imageCQCode);
             if (imageUrl == null) {
                 logger.warn("无法从CQ码中提取图片URL: {}", imageCQCode);
+                invalidCQCount++;
                 continue;
             }
             
@@ -84,7 +86,11 @@ public class ImageProcessor {
         }
         
         String errorMessage = null;
-        if (successCount == 0 && !imageCQCodes.isEmpty()) {
+        if (invalidCQCount == imageCQCodes.size()) {
+            // 所有CQ码都无法提取URL
+            errorMessage = "无法提取图片CQ码";
+        } else if (successCount == 0 && !imageCQCodes.isEmpty()) {
+            // 可以提取URL但所有图片处理失败
             errorMessage = "所有图片处理失败";
         }
         

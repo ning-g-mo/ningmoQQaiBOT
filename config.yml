@@ -1,0 +1,239 @@
+#柠枺AI机器人配置文件
+
+# 机器人基本配置
+bot:
+  # onebot WebSocket地址
+  ws_url: "ws://127.0.0.1:3001"
+  # onebot访问令牌（用于WebSocket连接认证，可选）
+  access_token: ""
+  # 机器人QQ号
+  self_id: "3436464181"
+  # 管理员列表（可以执行管理命令）
+  admins:
+    - "3829965348"  # 示例管理员QQ号
+  name: 柠枺  # 机器人的名字，用于在不@的情况下触发对话
+  always_at_sender: true  # 是否总是在回复时@发送者
+  enable_private_message: false  # 是否启用私聊功能，默认关闭
+  # 多段消息配置
+  messages:
+    # 最大连续发送消息数量，0表示不限制
+    max_consecutive: 3
+    # 发送多条消息的间隔时间(毫秒)
+    interval: 300
+
+# GUI配置
+gui:
+  # 是否启用GUI
+  enabled: true
+  # 是否在启动时显示GUI
+  show_on_startup: true
+  # 是否启用系统托盘
+  use_system_tray: true
+
+# AI相关配置
+ai:
+  # 最大对话长度（保留的消息数）
+  max_conversation_length: 20
+  
+  # 默认使用的模型
+  default_model: "gemini"
+  
+  # 人设配置
+  persona:
+    # 是否将人设作为系统提示词（system prompt）而不是对话历史
+    # true: 人设作为系统提示词（推荐，更稳定）
+    # false: 人设作为对话历史的一部分（可能影响对话连贯性）
+    as_system_prompt: true
+  
+  # 群成员信息相关设置
+  include_group_members: true   # 是否在AI提示中包含群成员信息，让AI能够艾特群友
+  filter_self_at: true          # 是否过滤AI回复中艾特机器人自己的内容
+  
+  # 屏蔽词功能配置
+  filter:
+    enabled: true               # 是否启用屏蔽词功能
+    reply_message: "您的消息包含屏蔽词，已被拦截"  # 触发屏蔽词时的回复消息
+  
+  # 图片处理配置
+  image:
+    enabled: true               # 是否启用图片处理功能
+    max_size_mb: 10             # 最大图片大小（MB）
+    timeout_seconds: 30         # 图片下载超时时间（秒）
+    supported_formats:          # 支持的图片格式
+      - "image/jpeg"
+      - "image/png"
+      - "image/gif"
+      - "image/webp"
+  
+  # OpenAI配置
+  openai:
+    api_key: "YOUR_API_KEY_HERE"
+    api_base_url: ""
+    temperature: 0.7
+    max_tokens: 2000
+  
+  # Anthropic配置
+  anthropic:
+    api_key: "YOUR_ANTHROPIC_API_KEY"
+    api_base_url: "https://api.anthropic.com"
+    temperature: 0.7
+    max_tokens: 2000
+  
+  # DeepSeek配置
+  deepseek:
+    api_key: "YOUR_DEEPSEEK_API_KEY"
+    api_base_url: "https://api.deepseek.com"
+    temperature: 0.7
+    max_tokens: 2000
+    # R系列模型配置
+    r_series:
+      top_p: 0.8
+      temperature: 0.7
+      max_tokens: 4000
+      # 默认停止序列
+      stop_sequences:
+        - "USER:"
+        - "ASSISTANT:"
+  
+  # 本地模型配置
+  local:
+    api_endpoint: "http://localhost:1234/v1/chat/completions"
+    temperature: 0.7
+    max_tokens: 2000
+  
+  # 模型配置
+  models:
+    gpt-3.5-turbo:
+      type: "openai"
+      description: "OpenAI GPT-3.5 Turbo模型"
+      # 以下为模型特定配置，若不指定则使用全局配置
+      api_key: ""  # 留空则使用全局api_key
+      api_base_url: ""  # 留空则使用全局api_base_url
+      temperature: 0.7
+      max_tokens: 2000
+    
+    gemini:
+      type: "openai"
+      description: "Google Gemini 1.5 Flash模型（通过兼容API访问）"
+      api_base_url: "https://ai.fcl.asia"
+      api_key: "YOUR_API_KEY_HERE"
+      model_name: "gemini-1.5-pro"
+      temperature: 0.7
+      max_tokens: 2000
+    
+    gpt-4:
+      type: "openai"
+      description: "OpenAI GPT-4模型"
+      # 可以为每个模型指定不同的API地址
+      api_base_url: "https://your-custom-endpoint.com"
+    
+    gpt-4-vision:
+      type: "openai"
+      description: "OpenAI GPT-4 Vision模型（支持图片识别）"
+      model_name: "gpt-4-vision-preview"
+      # 可以为每个模型指定不同的API地址
+      api_base_url: "https://your-custom-endpoint.com"
+      max_tokens: 4000
+    
+    claude-3-opus:
+      type: "anthropic"
+      description: "Claude 3 Opus - Anthropic最强大的模型"
+      api_key: "YOUR_ANTHROPIC_API_KEY"
+    
+    claude-3-sonnet:
+      type: "anthropic"
+      description: "Claude 3 Sonnet - 更经济快速的Claude模型"
+      api_key: "YOUR_ANTHROPIC_API_KEY"
+    
+    local-llama:
+      type: "local"
+      description: "本地运行的Llama模型"
+      local_model_name: "llama3"
+      api_endpoint: "http://localhost:11434/v1/chat/completions"
+    
+    custom-api:
+      type: "api"
+      description: "自定义API服务"
+      api_url: "https://your-custom-api.com/generate"
+      api_key: "YOUR_API_KEY"
+      auth_header: "Authorization"
+      auth_format: "Bearer {api_key}"
+      response_content_path: "result.text"
+      request_template:
+        model: "your-model-name"
+        temperature: 0.7
+        max_tokens: 2000
+    
+    deepseek-chat:
+      type: "deepseek"
+      description: "DeepSeek-V3 - 官方支持的基础聊天模型(推荐)"
+      api_key: ""  # 留空则使用全局api_key
+      api_base_url: ""  # 留空则使用全局api_base_url
+      model_name: "deepseek-chat"
+      temperature: 0.7
+      max_tokens: 4000
+      enable_search: false
+    
+    deepseek-reasoner:
+      type: "deepseek"
+      description: "DeepSeek-R1 - 官方推理增强模型，更擅长逻辑推理"
+      model_name: "deepseek-reasoner"
+      temperature: 0.7
+      max_tokens: 4000
+      enable_search: false
+      top_p: 0.8
+
+    deepseek-coder:
+      type: "deepseek"
+      description: "DeepSeek Coder - 专注于代码生成的模型"
+      model_name: "deepseek-coder"
+      temperature: 0.2
+      max_tokens: 4000
+    
+    # 注意: 以下历史模型配置会自动映射到deepseek-chat
+    # 仅保留用于向后兼容
+    deepseek-r1:
+      type: "deepseek"
+      description: "映射到DeepSeek-V3官方模型 (请考虑使用deepseek-reasoner)"
+      model_name: "deepseek-r1"
+      temperature: 0.7
+      max_tokens: 4000
+      enable_search: false
+    
+    deepseek-r3:
+      type: "deepseek"
+      description: "映射到DeepSeek-V3官方模型"
+      model_name: "deepseek-r3"
+      temperature: 0.7
+      max_tokens: 4000
+      enable_search: true
+    
+    deepseek-r1-instruct:
+      type: "deepseek"
+      description: "映射到DeepSeek-V3官方模型 (请考虑使用deepseek-reasoner)"
+      model_name: "deepseek-r1-instruct"
+      temperature: 0.7
+      max_tokens: 4000
+      
+    deepseek-r3-instruct:
+      type: "deepseek"
+      description: "映射到DeepSeek-V3官方模型"
+      model_name: "deepseek-r3-instruct"
+      temperature: 0.7
+      max_tokens: 4000
+  
+# 人设配置
+# 注意：人设系统已完全迁移到文件系统
+# 所有人设均存储在r/目录下的.md文件中，如r/default.md
+# 文件名是人设名称，文件内容是人设提示词
+# 
+# 您可以使用以下命令管理人设：
+# /查看人设 - 查看所有可用人设
+# /新增人设 [人设名] [人设内容] - 创建新人设
+# /删除人设 [人设名] - 删除指定人设
+# /刷新人设 - 重新加载所有人设文件
+
+# 日志配置
+logging:
+  level: "info"  # 日志级别：debug, info, warn, error
+  file: "logs/bot.log"  # 日志文件路径 

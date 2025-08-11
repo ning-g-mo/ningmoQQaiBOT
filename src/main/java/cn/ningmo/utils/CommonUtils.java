@@ -185,18 +185,18 @@ public class CommonUtils {
      * @return 图片URL，如果提取失败返回null
      */
     public static String extractImageUrlFromCQCode(String imageCQCode) {
-        // 匹配 file= 参数
-        Pattern filePattern = Pattern.compile("file=([^,\\]]+)");
-        Matcher fileMatcher = filePattern.matcher(imageCQCode);
-        if (fileMatcher.find()) {
-            return fileMatcher.group(1);
-        }
-        
-        // 匹配 url= 参数
+        // 优先匹配 url= 参数（完整URL）
         Pattern urlPattern = Pattern.compile("url=([^,\\]]+)");
         Matcher urlMatcher = urlPattern.matcher(imageCQCode);
         if (urlMatcher.find()) {
             return urlMatcher.group(1);
+        }
+        
+        // 如果没有url参数，则匹配 file= 参数（文件名）
+        Pattern filePattern = Pattern.compile("file=([^,\\]]+)");
+        Matcher fileMatcher = filePattern.matcher(imageCQCode);
+        if (fileMatcher.find()) {
+            return fileMatcher.group(1);
         }
         
         return null;
