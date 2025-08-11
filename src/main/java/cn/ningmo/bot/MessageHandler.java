@@ -536,8 +536,14 @@ public class MessageHandler {
                 long beforeModelCall = System.currentTimeMillis();
                 
                 // 处理消息中的图片
+                logger.debug("开始处理消息中的图片，原始内容: {}", content);
                 ImageProcessor.ImageProcessResult imageResult = imageProcessor.processImages(content);
                 List<String> imageBase64List = imageResult.getImageBase64List();
+                
+                logger.debug("图片处理结果: 成功数量={}, 错误={}, 图片列表大小={}", 
+                           imageResult.getSuccessCount(), 
+                           imageResult.getErrorMessage(), 
+                           imageBase64List.size());
                 
                 if (imageResult.hasError()) {
                     logger.warn("图片处理出现错误: {}", imageResult.getErrorMessage());

@@ -113,8 +113,17 @@ public class ImageProcessor {
             // 检查内容类型
             String contentType = connection.getContentType();
             if (contentType != null && !isSupportedFormat(contentType)) {
-                logger.warn("不支持的图片格式: {} (Content-Type: {})", imageUrl, contentType);
-                return null;
+                // 特殊处理QQ图片URL，它们可能返回JSON而不是直接的图片
+                if (imageUrl.contains("multimedia.nt.qq.com.cn") && contentType.contains("application/json")) {
+                    logger.info("检测到QQ图片URL，尝试从JSON响应中提取图片数据: {}", imageUrl);
+                    // 这里可以添加从JSON响应中提取图片URL的逻辑
+                    // 暂时跳过，因为需要解析JSON响应
+                    logger.warn("QQ图片URL需要特殊处理，暂时跳过: {}", imageUrl);
+                    return null;
+                } else {
+                    logger.warn("不支持的图片格式: {} (Content-Type: {})", imageUrl, contentType);
+                    return null;
+                }
             }
             
             try (InputStream inputStream = connection.getInputStream()) {

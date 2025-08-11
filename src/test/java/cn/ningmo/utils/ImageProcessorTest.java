@@ -37,6 +37,18 @@ public class ImageProcessorTest {
     }
     
     @Test
+    void testExtractImageUrlFromCQCodeWithHtmlEntities() {
+        // 测试包含HTML实体编码的URL
+        String cqCode = "[CQ:image,file=8C1676777917BC5B803181050DF3C6CA.jpg,sub_type=0,url=https://multimedia.nt.qq.com.cn/download?appid=1407&amp;fileid=test&amp;rkey=test,file_size=1622566]";
+        String url = CommonUtils.extractImageUrlFromCQCode(cqCode);
+        assertNotNull(url);
+        assertTrue(url.contains("https://multimedia.nt.qq.com.cn/download"));
+        assertTrue(url.contains("appid=1407"));
+        assertTrue(url.contains("fileid=test"));
+        assertTrue(url.contains("rkey=test"));
+    }
+    
+    @Test
     void testContainsImage() {
         String messageWithImage = "这是包含图片的消息[CQ:image,file=test.jpg]";
         String messageWithoutImage = "这是不包含图片的消息";
@@ -63,6 +75,18 @@ public class ImageProcessorTest {
         assertFalse(result.hasImages());
         assertTrue(result.hasError());
         assertEquals("无法提取图片CQ码", result.getErrorMessage());
+    }
+    
+    @Test
+    void testProcessImagesWithRealCQCode() {
+        // 模拟实际的QQ图片CQ码
+        String message = "[CQ:at,qq=3436464181] 能看到图片吗？[CQ:image,file=8C1676777917BC5B803181050DF3C6CA.jpg,sub_type=0,url=https://multimedia.nt.qq.com.cn/download?appid=1407&amp;fileid=test&amp;rkey=test,file_size=1622566]";
+        ImageProcessor.ImageProcessResult result = imageProcessor.processImages(message);
+        
+        // 应该能提取到图片CQ码，但下载会失败（因为是测试URL）
+        assertFalse(result.hasImages()); // 下载会失败
+        assertTrue(result.hasError()); // 应该有错误
+        assertEquals("所有图片处理失败", result.getErrorMessage());
     }
     
     @Test

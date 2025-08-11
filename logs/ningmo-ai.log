@@ -22,3 +22,38 @@
 2025-08-11 12:20:55.309 [main] INFO  cn.ningmo.config.ConfigLoader - 配置文件加载成功
 2025-08-11 12:20:55.310 [main] INFO  cn.ningmo.config.ConfigLoader - 已设置日志级别：INFO
 2025-08-11 12:20:55.311 [main] INFO  cn.ningmo.utils.ImageProcessor - 图片处理器初始化完成: enabled=true, maxSize=10MB, timeout=30s
+2025-08-11 12:34:37.175 [main] INFO  cn.ningmo.config.ConfigLoader - 配置文件加载成功
+2025-08-11 12:34:37.184 [main] INFO  cn.ningmo.config.ConfigLoader - 已设置日志级别：INFO
+2025-08-11 12:34:37.191 [main] INFO  cn.ningmo.utils.ImageProcessor - 图片处理器初始化完成: enabled=true, maxSize=10MB, timeout=30s
+2025-08-11 12:34:37.296 [main] INFO  cn.ningmo.config.ConfigLoader - 配置文件加载成功
+2025-08-11 12:34:37.297 [main] INFO  cn.ningmo.config.ConfigLoader - 已设置日志级别：INFO
+2025-08-11 12:34:37.297 [main] INFO  cn.ningmo.utils.ImageProcessor - 图片处理器初始化完成: enabled=true, maxSize=10MB, timeout=30s
+2025-08-11 12:34:37.324 [main] INFO  cn.ningmo.config.ConfigLoader - 配置文件加载成功
+2025-08-11 12:34:37.324 [main] INFO  cn.ningmo.config.ConfigLoader - 已设置日志级别：INFO
+2025-08-11 12:34:37.324 [main] INFO  cn.ningmo.utils.ImageProcessor - 图片处理器初始化完成: enabled=true, maxSize=10MB, timeout=30s
+2025-08-11 12:34:37.325 [main] INFO  cn.ningmo.utils.ImageProcessor - 开始处理消息中的图片...
+2025-08-11 12:34:37.325 [main] INFO  cn.ningmo.utils.ImageProcessor - 提取到 1 个图片CQ码
+2025-08-11 12:34:37.326 [main] WARN  cn.ningmo.utils.ImageProcessor - 无法从CQ码中提取图片URL: [CQ:image]
+2025-08-11 12:34:37.326 [main] INFO  cn.ningmo.utils.ImageProcessor - 图片处理完成: 成功 0/1, 准备发送给AI模型
+2025-08-11 12:34:37.462 [main] INFO  cn.ningmo.config.ConfigLoader - 配置文件加载成功
+2025-08-11 12:34:37.463 [main] INFO  cn.ningmo.config.ConfigLoader - 已设置日志级别：INFO
+2025-08-11 12:34:37.464 [main] INFO  cn.ningmo.utils.ImageProcessor - 图片处理器初始化完成: enabled=true, maxSize=10MB, timeout=30s
+2025-08-11 12:34:37.465 [main] INFO  cn.ningmo.utils.ImageProcessor - 开始处理消息中的图片...
+2025-08-11 12:34:37.466 [main] INFO  cn.ningmo.utils.ImageProcessor - 提取到 1 个图片CQ码
+2025-08-11 12:34:37.466 [main] DEBUG cn.ningmo.utils.ImageProcessor - 开始下载图片: https://multimedia.nt.qq.com.cn/download?appid=1407&amp;fileid=test&amp;rkey=test
+2025-08-11 12:34:43.559 [main] INFO  cn.ningmo.utils.ImageProcessor - 检测到QQ图片URL，尝试从JSON响应中提取图片数据: https://multimedia.nt.qq.com.cn/download?appid=1407&amp;fileid=test&amp;rkey=test
+2025-08-11 12:34:43.561 [main] WARN  cn.ningmo.utils.ImageProcessor - QQ图片URL需要特殊处理，暂时跳过: https://multimedia.nt.qq.com.cn/download?appid=1407&amp;fileid=test&amp;rkey=test
+2025-08-11 12:34:43.562 [main] WARN  cn.ningmo.utils.ImageProcessor - 图片处理失败: https://multimedia.nt.qq.com.cn/download?appid=1407&amp;fileid=test&amp;rkey=test
+2025-08-11 12:34:43.562 [main] INFO  cn.ningmo.utils.ImageProcessor - 图片处理完成: 成功 0/1, 准备发送给AI模型
+2025-08-11 12:34:43.575 [main] INFO  cn.ningmo.config.ConfigLoader - 配置文件加载成功
+2025-08-11 12:34:43.575 [main] INFO  cn.ningmo.config.ConfigLoader - 已设置日志级别：INFO
+2025-08-11 12:34:43.576 [main] INFO  cn.ningmo.utils.ImageProcessor - 图片处理器初始化完成: enabled=true, maxSize=10MB, timeout=30s
+2025-08-11 12:34:43.586 [main] INFO  cn.ningmo.config.ConfigLoader - 配置文件加载成功
+2025-08-11 12:34:43.586 [main] INFO  cn.ningmo.config.ConfigLoader - 已设置日志级别：INFO
+2025-08-11 12:34:43.587 [main] INFO  cn.ningmo.utils.ImageProcessor - 图片处理器初始化完成: enabled=true, maxSize=10MB, timeout=30s
+2025-08-11 12:34:43.599 [main] INFO  cn.ningmo.config.ConfigLoader - 配置文件加载成功
+2025-08-11 12:34:43.600 [main] INFO  cn.ningmo.config.ConfigLoader - 已设置日志级别：INFO
+2025-08-11 12:34:43.600 [main] INFO  cn.ningmo.utils.ImageProcessor - 图片处理器初始化完成: enabled=true, maxSize=10MB, timeout=30s
+2025-08-11 12:34:43.631 [main] INFO  cn.ningmo.config.ConfigLoader - 配置文件加载成功
+2025-08-11 12:34:43.631 [main] INFO  cn.ningmo.config.ConfigLoader - 已设置日志级别：INFO
+2025-08-11 12:34:43.633 [main] INFO  cn.ningmo.utils.ImageProcessor - 图片处理器初始化完成: enabled=true, maxSize=10MB, timeout=30s

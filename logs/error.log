@@ -1,1 +1,4 @@
 2025-08-11 12:20:55.161 [main] WARN  cn.ningmo.utils.ImageProcessor - 无法从CQ码中提取图片URL: [CQ:image]
+2025-08-11 12:34:37.326 [main] WARN  cn.ningmo.utils.ImageProcessor - 无法从CQ码中提取图片URL: [CQ:image]
+2025-08-11 12:34:43.561 [main] WARN  cn.ningmo.utils.ImageProcessor - QQ图片URL需要特殊处理，暂时跳过: https://multimedia.nt.qq.com.cn/download?appid=1407&amp;fileid=test&amp;rkey=test
+2025-08-11 12:34:43.562 [main] WARN  cn.ningmo.utils.ImageProcessor - 图片处理失败: https://multimedia.nt.qq.com.cn/download?appid=1407&amp;fileid=test&amp;rkey=test
