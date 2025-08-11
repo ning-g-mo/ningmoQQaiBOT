@@ -19,6 +19,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import cn.ningmo.utils.CommonUtils;
+import cn.ningmo.utils.ImageProcessor;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -35,6 +36,7 @@ public class MessageHandler {
     private PersonaManager personaManager;
     private final BlacklistManager blacklistManager;
     private final FilterWordManager filterWordManager;
+    private final ImageProcessor imageProcessor;
     
     private final ScheduledExecutorService executor;
     
@@ -52,6 +54,7 @@ public class MessageHandler {
         this.aiService = aiService;
         this.blacklistManager = blacklistManager;
         this.filterWordManager = filterWordManager;
+        this.imageProcessor = new ImageProcessor(configLoader);
         this.modelManager = new ModelManager(configLoader);
         this.personaManager = new PersonaManager(configLoader);
         
@@ -532,30 +535,12 @@ public class MessageHandler {
                 // 记录模型调用前的时间
                 long beforeModelCall = System.currentTimeMillis();
                 
-                // 检查消息是否包含图片
-                List<String> imageBase64List = new ArrayList<>();
-                if (CommonUtils.containsImage(content)) {
-                    logger.info("检测到消息包含图片，开始处理图片...");
-                    List<String> imageCQCodes = CommonUtils.extractImageCQCodes(content);
-                    
-                    for (String imageCQCode : imageCQCodes) {
-                        String imageUrl = CommonUtils.extractImageUrlFromCQCode(imageCQCode);
-                        if (imageUrl != null) {
-                            String imageBase64 = CommonUtils.downloadImageAsBase64(imageUrl);
-                            if (imageBase64 != null) {
-                                imageBase64List.add(imageBase64);
-                                logger.info("成功下载并编码图片: {}", imageUrl);
-                            } else {
-                                logger.warn("下载图片失败: {}", imageUrl);
-                            }
-                        } else {
-                            logger.warn("无法从CQ码中提取图片URL: {}", imageCQCode);
-                        }
-                    }
-                    
-                    if (!imageBase64List.isEmpty()) {
-                        logger.info("成功处理 {} 张图片", imageBase64List.size());
-                    }
+                // 处理消息中的图片
+                ImageProcessor.ImageProcessResult imageResult = imageProcessor.processImages(content);
+                List<String> imageBase64List = imageResult.getImageBase64List();
+                
+                if (imageResult.hasError()) {
+                    logger.warn("图片处理出现错误: {}", imageResult.getErrorMessage());
                 }
                 
                 // 调用AI服务
@@ -716,30 +701,12 @@ public class MessageHandler {
                 String modelName = dataManager.getUserModel(userId);
                 String persona = dataManager.getUserPersona(userId);
                 
-                // 检查消息是否包含图片
-                List<String> imageBase64List = new ArrayList<>();
-                if (CommonUtils.containsImage(content)) {
-                    logger.info("检测到私聊消息包含图片，开始处理图片...");
-                    List<String> imageCQCodes = CommonUtils.extractImageCQCodes(content);
-                    
-                    for (String imageCQCode : imageCQCodes) {
-                        String imageUrl = CommonUtils.extractImageUrlFromCQCode(imageCQCode);
-                        if (imageUrl != null) {
-                            String imageBase64 = CommonUtils.downloadImageAsBase64(imageUrl);
-                            if (imageBase64 != null) {
-                                imageBase64List.add(imageBase64);
-                                logger.info("成功下载并编码私聊图片: {}", imageUrl);
-                            } else {
-                                logger.warn("下载私聊图片失败: {}", imageUrl);
-                            }
-                        } else {
-                            logger.warn("无法从私聊CQ码中提取图片URL: {}", imageCQCode);
-                        }
-                    }
-                    
-                    if (!imageBase64List.isEmpty()) {
-                        logger.info("成功处理 {} 张私聊图片", imageBase64List.size());
-                    }
+                // 处理私聊消息中的图片
+                ImageProcessor.ImageProcessResult imageResult = imageProcessor.processImages(content);
+                List<String> imageBase64List = imageResult.getImageBase64List();
+                
+                if (imageResult.hasError()) {
+                    logger.warn("私聊图片处理出现错误: {}", imageResult.getErrorMessage());
                 }
                 
                 // 调用AI服务

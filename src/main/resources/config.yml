@@ -54,6 +54,17 @@ ai:
     enabled: true               # 是否启用屏蔽词功能
     reply_message: "您的消息包含屏蔽词，已被拦截"  # 触发屏蔽词时的回复消息
   
+  # 图片处理配置
+  image:
+    enabled: true               # 是否启用图片处理功能
+    max_size_mb: 10             # 最大图片大小（MB）
+    timeout_seconds: 30         # 图片下载超时时间（秒）
+    supported_formats:          # 支持的图片格式
+      - "image/jpeg"
+      - "image/png"
+      - "image/gif"
+      - "image/webp"
+  
   # OpenAI配置
   openai:
     api_key: "YOUR_API_KEY_HERE"

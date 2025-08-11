@@ -210,8 +210,28 @@ public class CommonUtils {
     public static String downloadImageAsBase64(String imageUrl) {
         try {
             URL url = new URL(imageUrl);
-            try (InputStream inputStream = url.openStream()) {
+            
+            // 设置连接超时和读取超时
+            java.net.URLConnection connection = url.openConnection();
+            connection.setConnectTimeout(10000); // 10秒连接超时
+            connection.setReadTimeout(30000);    // 30秒读取超时
+            
+            try (InputStream inputStream = connection.getInputStream()) {
                 byte[] imageBytes = inputStream.readAllBytes();
+                
+                // 检查图片大小，避免过大的图片
+                if (imageBytes.length > 10 * 1024 * 1024) { // 10MB限制
+                    logger.warn("图片过大，跳过处理: {} ({} bytes)", imageUrl, imageBytes.length);
+                    return null;
+                }
+                
+                // 检查图片格式
+                String contentType = connection.getContentType();
+                if (contentType != null && !contentType.startsWith("image/")) {
+                    logger.warn("URL不是图片格式: {} (Content-Type: {})", imageUrl, contentType);
+                    return null;
+                }
+                
                 return Base64.getEncoder().encodeToString(imageBytes);
             }
         } catch (Exception e) {
@@ -227,5 +247,38 @@ public class CommonUtils {
      */
     public static boolean containsImage(String message) {
         return message.contains("[CQ:image");
+    }
+    
+    /**
+     * 获取图片的MIME类型
+     * @param imageUrl 图片URL
+     * @return MIME类型，如果无法确定返回image/jpeg
+     */
+    public static String getImageMimeType(String imageUrl) {
+        try {
+            URL url = new URL(imageUrl);
+            java.net.URLConnection connection = url.openConnection();
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(10000);
+            
+            String contentType = connection.getContentType();
+            if (contentType != null && contentType.startsWith("image/")) {
+                return contentType;
+            }
+        } catch (Exception e) {
+            logger.debug("无法获取图片MIME类型: {}", imageUrl, e);
+        }
+        
+        // 根据文件扩展名推断
+        if (imageUrl.toLowerCase().endsWith(".png")) {
+            return "image/png";
+        } else if (imageUrl.toLowerCase().endsWith(".gif")) {
+            return "image/gif";
+        } else if (imageUrl.toLowerCase().endsWith(".webp")) {
+            return "image/webp";
+        }
+        
+        // 默认返回jpeg
+        return "image/jpeg";
     }
 } 

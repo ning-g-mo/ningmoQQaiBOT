@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class ConfigLoader {
@@ -109,9 +110,40 @@ public class ConfigLoader {
         return getConfig(key, false);
     }
     
+    public boolean getConfigBoolean(String key, boolean defaultValue) {
+        return getConfig(key, defaultValue);
+    }
+    
+    public int getConfigInt(String key, int defaultValue) {
+        Object value = getConfig(key, null);
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        } else if (value instanceof String) {
+            try {
+                return Integer.parseInt((String) value);
+            } catch (NumberFormatException e) {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
+    }
+    
     @SuppressWarnings("unchecked")
     public Map<String, Object> getConfigMap(String key) {
         return getConfig(key, new HashMap<>());
+    }
+    
+    @SuppressWarnings("unchecked")
+    public <T> List<T> getConfigList(String key, List<T> defaultValue) {
+        Object value = getConfig(key, null);
+        if (value instanceof List) {
+            try {
+                return (List<T>) value;
+            } catch (ClassCastException e) {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
     }
     
     /**

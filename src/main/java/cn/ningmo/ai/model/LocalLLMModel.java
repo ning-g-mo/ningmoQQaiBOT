@@ -88,7 +88,38 @@ public class LocalLLMModel implements AIModel {
             for (Map<String, String> message : conversation) {
                 JSONObject jsonMessage = new JSONObject();
                 jsonMessage.put("role", message.get("role"));
-                jsonMessage.put("content", message.get("content"));
+                
+                // 检查是否是最后一条用户消息且包含图片
+                boolean isLastUserMessage = message.get("role").equals("user") && 
+                                          conversation.indexOf(message) == conversation.size() - 1;
+                
+                if (isLastUserMessage && !imageBase64List.isEmpty()) {
+                    // 构建包含图片的内容
+                    JSONArray contentArray = new JSONArray();
+                    
+                    // 添加文本内容
+                    JSONObject textContent = new JSONObject();
+                    textContent.put("type", "text");
+                    textContent.put("text", message.get("content"));
+                    contentArray.put(textContent);
+                    
+                    // 添加图片内容
+                    for (String imageBase64 : imageBase64List) {
+                        JSONObject imageContent = new JSONObject();
+                        imageContent.put("type", "image_url");
+                        
+                        JSONObject imageUrl = new JSONObject();
+                        imageUrl.put("url", "data:image/jpeg;base64," + imageBase64);
+                        imageContent.put("image_url", imageUrl);
+                        
+                        contentArray.put(imageContent);
+                    }
+                    
+                    jsonMessage.put("content", contentArray);
+                } else {
+                    jsonMessage.put("content", message.get("content"));
+                }
+                
                 messages.put(jsonMessage);
             }
             
@@ -107,7 +138,38 @@ public class LocalLLMModel implements AIModel {
             for (Map<String, String> message : conversation) {
                 JSONObject jsonMessage = new JSONObject();
                 jsonMessage.put("role", message.get("role"));
-                jsonMessage.put("content", message.get("content"));
+                
+                // 检查是否是最后一条用户消息且包含图片
+                boolean isLastUserMessage = message.get("role").equals("user") && 
+                                          conversation.indexOf(message) == conversation.size() - 1;
+                
+                if (isLastUserMessage && !imageBase64List.isEmpty()) {
+                    // 构建包含图片的内容
+                    JSONArray contentArray = new JSONArray();
+                    
+                    // 添加文本内容
+                    JSONObject textContent = new JSONObject();
+                    textContent.put("type", "text");
+                    textContent.put("text", message.get("content"));
+                    contentArray.put(textContent);
+                    
+                    // 添加图片内容
+                    for (String imageBase64 : imageBase64List) {
+                        JSONObject imageContent = new JSONObject();
+                        imageContent.put("type", "image_url");
+                        
+                        JSONObject imageUrl = new JSONObject();
+                        imageUrl.put("url", "data:image/jpeg;base64," + imageBase64);
+                        imageContent.put("image_url", imageUrl);
+                        
+                        contentArray.put(imageContent);
+                    }
+                    
+                    jsonMessage.put("content", contentArray);
+                } else {
+                    jsonMessage.put("content", message.get("content"));
+                }
+                
                 messages.put(jsonMessage);
             }
             
